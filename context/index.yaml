@@ -1,14 +1,12 @@
 # Automatically generated context index for Utopia::Project guides.
 # Do not edit then files in this directory directly, instead edit the guides and then run `bake utopia:project:agent:context:update`.
 ---
-description: Asynchronous gRPC client and server implementation built on top of protocol-grpc and async-http.
+description: Client and server implementation for gRPC using Async.
 metadata:
   documentation_uri: https://socketry.github.io/async-grpc/
   source_code_uri: https://github.com/socketry/async-grpc.git
 files:
 - path: getting-started.md
   title: Getting Started
-  description: This guide explains how to get started with `Async::GRPC` for building gRPC clients and servers.
-
-
-
+  description: This guide explains how to get started with `Async::GRPC` for building
+    gRPC clients and servers.

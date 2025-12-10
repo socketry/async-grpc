@@ -25,6 +25,8 @@ Please see the [project documentation](https://socketry.github.io/async-grpc/) f
 
 Please see the [project releases](https://socketry.github.io/async-grpc/releases/index) for all releases.
 
+### v0.1.0
+
 ## See Also
 
   - [protocol-grpc](https://github.com/socketry/protocol-grpc) — Protocol abstractions for gRPC that this gem builds upon.
