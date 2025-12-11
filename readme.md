@@ -12,8 +12,7 @@ Asynchronous gRPC client and server implementation built on top of `protocol-grp
   - **Method-based stubs** - Create type-safe stubs from `Protocol::GRPC::Interface` definitions. Accepts both PascalCase and snake\_case method names for convenience.
   - **Server middleware** - `DispatcherMiddleware` routes requests to registered services based on path.
   - **All RPC patterns** - Supports unary, server streaming, client streaming, and bidirectional streaming RPCs.
-  - **Interface-based services** - Define services using `Protocol::GRPC::Interface` with automatic PascalCase to snake\_case method name conversion for Ruby implementations.
-  - **HTTP/2 transport** - Built on `async-http` with automatic HTTP/2 multiplexing and connection pooling.
+  - **HTTP/1 and HTTP/2 transport** - Built on `async-http` with automatic HTTP/2 multiplexing and connection pooling.
 
 ## Usage
 
