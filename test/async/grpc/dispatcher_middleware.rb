@@ -11,9 +11,11 @@ require "protocol/grpc/body/writable_body"
 require "async/grpc/test_interface"
 
 describe Async::GRPC::DispatcherMiddleware do
+	include Sus::Fixtures::Async::SchedulerContext
+	
 	let(:service_name) {"test.Service"}
 	let(:service) {Async::GRPC::Fixtures::TestService.new(Async::GRPC::Fixtures::TestInterface, service_name)}
-	let(:dispatcher) {subject.new(services: { service_name => service })}
+	let(:dispatcher) {subject.new(services: {service_name => service})}
 	
 	with "#register" do
 		it "can register a service" do
@@ -25,11 +27,11 @@ describe Async::GRPC::DispatcherMiddleware do
 	
 	with "#call" do
 		let(:request_body) do
-			body = Protocol::GRPC::Body::WritableBody.new
-			request_message = Protocol::GRPC::Fixtures::TestMessage.new(value: "test")
-			body.write(request_message)
-			body.close_write
-			body
+			Protocol::GRPC::Body::WritableBody.new.tap do |body|
+				request_message = Protocol::GRPC::Fixtures::TestMessage.new(value: "test")
+				body.write(request_message)
+				body.close_write
+			end
 		end
 		
 		let(:headers) {Protocol::GRPC::Methods.build_headers}
@@ -56,7 +58,8 @@ describe Async::GRPC::DispatcherMiddleware do
 			response = dispatcher.call(request)
 			expect(response.status).to be == 200
 			
-			response_body = Protocol::GRPC::Body::ReadableBody.new(response.body, message_class: Protocol::GRPC::Fixtures::TestMessage)
+			response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: Protocol::GRPC::Fixtures::TestMessage)
+			
 			response_message = response_body.read
 			expect(response_message).not.to be_nil
 			expect(response_message.value).to be == "Hello, test!"

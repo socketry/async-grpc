@@ -100,7 +100,9 @@ module Async
 			def call(request)
 				request.headers = @headers.merge(request.headers)
 				
-				super
+				super.tap do |response|
+					response.headers.policy = Protocol::GRPC::HEADER_POLICY
+				end
 			end
 			
 			# Make a gRPC call.
@@ -166,19 +168,17 @@ module Async
 				begin
 					# Read body first - trailers are only available after body is consumed
 					response_encoding = response.headers["grpc-encoding"]
-					readable_body = Protocol::GRPC::Body::ReadableBody.new(
-						response.body,
-						message_class: response_class,
-						encoding: response_encoding
-					)
+					response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: response_class, encoding: response_encoding)
 					
-					message = readable_body.read
-					readable_body.close
+					if response_body
+						response_value = response_body.read
+						response_body.close
+					end
 					
 					# Check status after reading body (trailers are now available)
 					check_status!(response)
 					
-					message
+					return response_value
 				ensure
 					response.close
 				end
@@ -203,32 +203,19 @@ module Async
 				response = call(http_request)
 				
 				begin
-					# Set gRPC policy BEFORE reading body so trailers are processed correctly:
-					unless response.headers.policy == Protocol::GRPC::HEADER_POLICY
-						response.headers.policy = Protocol::GRPC::HEADER_POLICY
-					end
-					
 					# Read body first - trailers are only available after body is consumed:
 					response_encoding = response.headers["grpc-encoding"]
-					readable_body = Protocol::GRPC::Body::ReadableBody.new(
-						response.body,
-						message_class: response_class,
-						encoding: response_encoding
-					)
+					response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: response_class, encoding: response_encoding)
 					
-					return readable_body unless block_given?
-					
-					begin
-						readable_body.each(&block)
-					ensure
-						readable_body.close
+					if block_given? and response_body
+						response_body.each(&block)
 					end
 					
 					# Check status after reading all body chunks (trailers are now available):
 					check_status!(response)
 					
-					readable_body
-				rescue StandardError
+					return response_body
+				rescue
 					response.close
 					raise
 				end
@@ -327,12 +314,6 @@ module Async
 			# @parameter response [Protocol::HTTP::Response]
 			# @raises [Protocol::GRPC::Error] If status is not OK
 			def check_status!(response)
-				# Policy should already be set before calling this method:
-				# But ensure it's set just in case
-				unless response.headers.policy == Protocol::GRPC::HEADER_POLICY
-					response.headers.policy = Protocol::GRPC::HEADER_POLICY
-				end
-				
 				status = Protocol::GRPC::Metadata.extract_status(response.headers)
 				
 				# If status is UNKNOWN (not found), default to OK:

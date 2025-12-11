@@ -58,35 +58,11 @@ module Async
 				descriptions = {}
 				
 				@interface_class.rpcs.each do |pascal_case_name, rpc|
-					# Use explicit method name if provided, otherwise convert PascalCase to snake_case:
-					ruby_method_name = if rpc.method
-						rpc.method
-					else
-						snake_case_name = pascal_case_to_snake_case(pascal_case_name.to_s)
-						snake_case_name.to_sym
-					end
-					
-					descriptions[pascal_case_name.to_s] = {
-						method: ruby_method_name,
-						request_class: rpc.request_class,
-						response_class: rpc.response_class,
-						streaming: rpc.streaming
-					}
+					# rpc.method is always set (either explicitly or auto-converted in Interface.rpc)
+					descriptions[pascal_case_name.to_s] = rpc
 				end
 				
 				descriptions
-			end
-			
-		private
-			
-			# Convert PascalCase to snake_case.
-			# @parameter pascal_case [String] PascalCase string (e.g., "SayHello")
-			# @returns [String] snake_case string (e.g., "say_hello")
-			def pascal_case_to_snake_case(pascal_case)
-				pascal_case
-					.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')  # Insert underscore before capital letters followed by lowercase
-					.gsub(/([a-z\d])([A-Z])/, '\1_\2')      # Insert underscore between lowercase/digit and uppercase
-					.downcase
 			end
 		end
 	end

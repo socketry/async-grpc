@@ -12,10 +12,7 @@ require "protocol/grpc/body/readable_body"
 require "sus/fixtures/async/http"
 require "async/grpc/test_interface"
 
-describe Async::GRPC::Client do
-	include Sus::Fixtures::Async::HTTP::ServerContext
-	let(:protocol) {Async::HTTP::Protocol::HTTP2}
-	
+AClient = Sus::Shared("a client") do
 	let(:service_name) {"test.Service"}
 	let(:service) {Async::GRPC::Fixtures::TestService.new(Async::GRPC::Fixtures::TestInterface, service_name)}
 	let(:dispatcher) {Async::GRPC::DispatcherMiddleware.new(services: { service_name => service })}
@@ -80,5 +77,19 @@ describe Async::GRPC::Client do
 		expect do
 			stub.unknown_method(request)
 		end.to raise_exception(NoMethodError)
+	end
+end
+
+describe Async::GRPC::Client do
+	include Sus::Fixtures::Async::HTTP::ServerContext
+	
+	with "http/1" do
+		let(:protocol) {Async::HTTP::Protocol::HTTP1}
+		it_behaves_like AClient
+	end
+	
+	with "http/2" do
+		let(:protocol) {Async::HTTP::Protocol::HTTP2}
+		it_behaves_like AClient
 	end
 end

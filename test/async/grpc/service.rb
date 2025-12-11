@@ -23,21 +23,21 @@ describe Async::GRPC::Service do
 		it "converts snake_case to CamelCase" do
 			descriptions = service.rpc_descriptions
 			expect(descriptions.key?("UnaryCall")).to be == true
-			expect(descriptions["UnaryCall"][:method]).to be == :unary_call
+			expect(descriptions["UnaryCall"].method).to be == :unary_call
 		end
 		
 		it "converts PascalCase to snake_case for Ruby method names" do
 			descriptions = service.rpc_descriptions
 			expect(descriptions.key?("SayHello")).to be == true
-			expect(descriptions["SayHello"][:method]).to be == :say_hello  # PascalCase key maps to snake_case method
+			expect(descriptions["SayHello"].method).to be == :say_hello  # PascalCase key maps to snake_case method
 		end
 		
 		it "includes request and response classes" do
 			descriptions = service.rpc_descriptions
 			rpc_desc = descriptions["UnaryCall"]
-			expect(rpc_desc[:request_class]).to be == Protocol::GRPC::Fixtures::TestMessage
-			expect(rpc_desc[:response_class]).to be == Protocol::GRPC::Fixtures::TestMessage
-			expect(rpc_desc[:streaming]).to be == :unary
+			expect(rpc_desc.request_class).to be == Protocol::GRPC::Fixtures::TestMessage
+			expect(rpc_desc.response_class).to be == Protocol::GRPC::Fixtures::TestMessage
+			expect(rpc_desc.streaming).to be == :unary
 		end
 		
 		it "uses explicit method name when provided" do
@@ -52,7 +52,7 @@ describe Async::GRPC::Service do
 			service_with_explicit = Async::GRPC::Service.new(interface_with_explicit, "test.Service")
 			descriptions = service_with_explicit.rpc_descriptions
 			
-			expect(descriptions["XMLParser"][:method]).to be == :xml_parser
+			expect(descriptions["XMLParser"].method).to be == :xml_parser
 		end
 	end
 end

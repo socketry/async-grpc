@@ -25,7 +25,13 @@ Please see the [project documentation](https://socketry.github.io/async-grpc/) f
 
 Please see the [project releases](https://socketry.github.io/async-grpc/releases/index) for all releases.
 
+### Unreleased
+
+  - Tidy up request and response body handling.
+
 ### v0.1.0
+
+  - Initial hack.
 
 ## See Also
 

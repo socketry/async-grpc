@@ -24,8 +24,8 @@ module Async
 					# rpc.method is always set (either explicit or auto-converted from PascalCase)
 					snake_case_method = rpc.method
 					
-					# Index by snake_case method name, storing RPC and PascalCase name for path building
-					@rpcs_by_method[snake_case_method] = [rpc, pascal_case_name]
+					# Index by snake_case method name, storing RPC (which includes name field)
+					@rpcs_by_method[snake_case_method] = rpc
 				end
 			end
 			
@@ -53,8 +53,7 @@ module Async
 					encoding = options.delete(:encoding)
 					
 					# Delegate to client.invoke with PascalCase method name (for interface lookup):
-					@client.invoke(@interface, interface_method_name, request, metadata: metadata, timeout: timeout, encoding: encoding,
-						&block)
+					@client.invoke(@interface, interface_method_name, request, metadata: metadata, timeout: timeout, encoding: encoding, &block)
 				else
 					super
 				end
@@ -78,8 +77,8 @@ module Async
 			# @returns [Array(Protocol::GRPC::RPC, Symbol) | Array(Nil, Nil)] RPC definition and PascalCase method name, or nil if not found
 			def lookup_rpc(method_name)
 				if @rpcs_by_method.key?(method_name)
-					rpc, pascal_case_name = @rpcs_by_method[method_name]
-					return [rpc, pascal_case_name]
+					rpc = @rpcs_by_method[method_name]
+					return [rpc, rpc.name]
 				end
 				
 				[nil, nil]
