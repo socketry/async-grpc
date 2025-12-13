@@ -318,13 +318,18 @@ module Async
 				end
 			end
 			
-			# Check gRPC status and raise error if not OK
+		# Check gRPC status and raise error if not OK
 			def check_status!(response)
 				status = Protocol::GRPC::Metadata.extract_status(response.headers)
-				if status != Protocol::GRPC::Status::OK
-					message = Protocol::GRPC::Metadata.extract_message(response.headers)
-					raise Protocol::GRPC::Error.new(status, message)
-				end
+				
+				return if status == Protocol::GRPC::Status::OK
+				
+				message = Protocol::GRPC::Metadata.extract_message(response.headers)
+				metadata = Protocol::GRPC::Methods.extract_metadata(response.headers)
+				
+				remote_error = RemoteError.for(message, metadata)
+				
+				raise Protocol::GRPC::Error.for(status, metadata: metadata), cause: remote_error
 			end
 		end
 	end
@@ -1001,7 +1006,7 @@ This enables async-grpc to be used as a drop-in replacement for the standard `gr
 ### Phase 1: Core Client (✅ Designed)
    - `Async::GRPC::Client` with all four RPC types
    - `Async::GRPC::ServerCall` context object (enhances Protocol::GRPC::Call)
-   - Basic error handling and status checking
+   - Error handling with backtrace support via `RemoteError` and exception chaining
    - Response body wrapping pattern
    - **Server**: Just use `Protocol::GRPC::Middleware` with `Async::HTTP::Server` (no wrapper needed!)
 
