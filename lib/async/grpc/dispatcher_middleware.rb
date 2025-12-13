@@ -61,7 +61,7 @@ module Async
 					
 					# Only add OK status if grpc-status hasn't been set by the handler:
 					unless call.response.headers["grpc-status"]
-						Protocol::GRPC::Metadata.add_status_trailer!(call.response.headers, status: Protocol::GRPC::Status::OK)
+						Protocol::GRPC::Metadata.add_status!(call.response.headers, status: Protocol::GRPC::Status::OK)
 					end
 				end
 			end

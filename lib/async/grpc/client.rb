@@ -16,6 +16,7 @@ require "protocol/grpc/body/writable_body"
 require "protocol/grpc/metadata"
 require "protocol/grpc/error"
 require_relative "stub"
+require_relative "remote_error"
 
 module Async
 	module GRPC
@@ -316,16 +317,14 @@ module Async
 			def check_status!(response)
 				status = Protocol::GRPC::Metadata.extract_status(response.headers)
 				
-				# If status is UNKNOWN (not found), default to OK:
-				# This handles cases where trailers aren't available or status wasn't set
-				status = Protocol::GRPC::Status::OK if status == Protocol::GRPC::Status::UNKNOWN
-				
 				return if status == Protocol::GRPC::Status::OK
 				
 				message = Protocol::GRPC::Metadata.extract_message(response.headers)
 				metadata = Protocol::GRPC::Methods.extract_metadata(response.headers)
 				
-				raise Protocol::GRPC::Error.for(status, message, metadata: metadata)
+				remote_error = RemoteError.for(message, metadata)
+				
+				raise Protocol::GRPC::Error.for(status, metadata: metadata), cause: remote_error
 			end
 		end
 	end
