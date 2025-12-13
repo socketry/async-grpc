@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.2.0
 
   - Added `Async::GRPC::RemoteError` class to encapsulate remote error details including message and backtrace extracted from response headers.
   - Client-side error handling now extracts backtraces from response metadata and sets them on `RemoteError`, which is chained as the `cause` of `Protocol::GRPC::Error` for better debugging.
