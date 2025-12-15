@@ -146,4 +146,3 @@ module Async
 		end
 	end
 end
-
