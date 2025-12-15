@@ -23,7 +23,7 @@ $ bundle add protocol-grpc async-http
   - {ruby Async::GRPC::Client} - An asynchronous gRPC client that wraps `Async::HTTP::Client`.
   - {ruby Async::GRPC::Stub} - A method-based stub for making RPC calls.
   - {ruby Async::GRPC::Service} - A concrete service implementation that uses a `Protocol::GRPC::Interface`.
-  - {ruby Async::GRPC::DispatcherMiddleware} - Middleware that routes requests to registered services.
+  - {ruby Async::GRPC::Dispatcher} - Middleware that routes requests to registered services.
 
 ## Client Usage
 
@@ -104,9 +104,9 @@ end
 ### Registering Services
 
 ``` ruby
-require "async/grpc/dispatcher_middleware"
+require "async/grpc/dispatcher"
 
-dispatcher = Async::GRPC::DispatcherMiddleware.new
+dispatcher = Async::GRPC::Dispatcher.new
 
 service = GreeterService.new(GreeterInterface, "hello.Greeter")
 dispatcher.register(service)
@@ -151,7 +151,7 @@ end
 Async do
 		# Setup server
 	endpoint = Async::HTTP::Endpoint.parse("http://localhost:50051")
-	dispatcher = Async::GRPC::DispatcherMiddleware.new
+	dispatcher = Async::GRPC::Dispatcher.new
 	dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
 	server = Async::HTTP::Server.for(endpoint, dispatcher)
 	

@@ -15,7 +15,7 @@ require "async/grpc/test_interface"
 AClient = Sus::Shared("a client") do
 	let(:service_name) {"test.Service"}
 	let(:service) {Async::GRPC::Fixtures::TestService.new(Async::GRPC::Fixtures::TestInterface, service_name)}
-	let(:dispatcher) {Async::GRPC::DispatcherMiddleware.new(services: { service_name => service })}
+	let(:dispatcher) {Async::GRPC::Dispatcher.new(services: { service_name => service })}
 	let(:app) {dispatcher}
 	
 	it "can make unary RPC call" do
@@ -119,7 +119,7 @@ AClient = Sus::Shared("a client") do
 				end
 			end.new(error_interface_class, error_service_name)
 		end
-		let(:app) {Async::GRPC::DispatcherMiddleware.new(services: { error_service_name => error_service })}
+		let(:app) {Async::GRPC::Dispatcher.new(services: { error_service_name => error_service })}
 		
 		it "raises Protocol::GRPC::Error with correct status code" do
 			grpc_client = Async::GRPC::Client.new(client)

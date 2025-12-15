@@ -17,16 +17,16 @@ require "protocol/grpc/status"
 
 module Async
 	module GRPC
-		# Represents middleware that dispatches gRPC requests to registered services.
+		# Dispatches gRPC requests to registered services.
 		# Handles routing based on service name from the request path.
 		#
 		# @example Registering services:
-		#   dispatcher = DispatcherMiddleware.new
+		#   dispatcher = Dispatcher.new
 		#   dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
 		#   dispatcher.register(WorldService.new(WorldInterface, "world.Greeter"))
 		#
 		#   server = Async::HTTP::Server.for(endpoint, dispatcher)
-		class DispatcherMiddleware < Protocol::GRPC::Middleware
+		class Dispatcher < Protocol::GRPC::Middleware
 			# Initialize the dispatcher.
 			# @parameter app [#call | Nil] The next middleware in the chain
 			# @parameter services [Hash] Optional initial services hash (service_name => service_instance)
@@ -146,3 +146,4 @@ module Async
 		end
 	end
 end
+

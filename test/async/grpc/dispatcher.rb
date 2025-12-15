@@ -3,14 +3,14 @@
 # Released under the MIT License.
 # Copyright, 2025, by Samuel Williams.
 
-require "async/grpc/dispatcher_middleware"
+require "async/grpc/dispatcher"
 require "async/grpc/service"
 require "protocol/http"
 require "protocol/grpc/methods"
 require "protocol/grpc/body/writable_body"
 require "async/grpc/test_interface"
 
-describe Async::GRPC::DispatcherMiddleware do
+describe Async::GRPC::Dispatcher do
 	include Sus::Fixtures::Async::SchedulerContext
 	
 	let(:service_name) {"test.Service"}
@@ -104,3 +104,4 @@ describe Async::GRPC::DispatcherMiddleware do
 		end
 	end
 end
+

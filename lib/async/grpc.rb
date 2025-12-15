@@ -7,7 +7,7 @@ require_relative "grpc/version"
 require_relative "grpc/client"
 require_relative "grpc/service"
 require_relative "grpc/stub"
-require_relative "grpc/dispatcher_middleware"
+require_relative "grpc/dispatcher"
 
 module Async
 	module GRPC

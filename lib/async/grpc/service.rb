@@ -9,7 +9,7 @@ module Async
 	module GRPC
 		# Represents a concrete service implementation that uses an Interface.
 		# Subclass this and implement the RPC methods defined in the interface.
-		# Services are registered with DispatcherMiddleware for routing.
+		# Services are registered with Dispatcher for routing.
 		#
 		# @example Example service implementation:
 		#   class GreeterInterface < Protocol::GRPC::Interface
@@ -32,7 +32,7 @@ module Async
 		#   end
 		#
 		#   # Register with dispatcher:
-		#   dispatcher = DispatcherMiddleware.new
+		#   dispatcher = Dispatcher.new
 		#   dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
 		#   server = Async::HTTP::Server.for(endpoint, dispatcher)
 		class Service
