@@ -22,8 +22,8 @@ module Async
 		#
 		# @example Registering services:
 		#   dispatcher = DispatcherMiddleware.new
-		#   dispatcher.register("hello.Greeter", GreeterService.new(GreeterInterface, "hello.Greeter"))
-		#   dispatcher.register("world.Greeter", WorldService.new(WorldInterface, "world.Greeter"))
+		#   dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
+		#   dispatcher.register(WorldService.new(WorldInterface, "world.Greeter"))
 		#
 		#   server = Async::HTTP::Server.for(endpoint, dispatcher)
 		class DispatcherMiddleware < Protocol::GRPC::Middleware
@@ -35,12 +35,12 @@ module Async
 				@services = services
 			end
 			
-			# Register a service.
-			# @parameter service_name [String] Service name (e.g., "hello.Greeter")
-			# @parameter service [Async::GRPC::Service] Service instance
-			def register(service_name, service)
-				@services[service_name] = service
-			end
+		# Register a service.
+		# @parameter service [Async::GRPC::Service] Service instance
+		# @parameter name [String] Service name (defaults to service.service_name)
+		def register(service, name: service.service_name)
+			@services[name] = service
+		end
 			
 			protected
 			

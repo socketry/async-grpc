@@ -33,7 +33,7 @@ module Async
 		#
 		#   # Register with dispatcher:
 		#   dispatcher = DispatcherMiddleware.new
-		#   dispatcher.register("hello.Greeter", GreeterService.new(GreeterInterface, "hello.Greeter"))
+		#   dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
 		#   server = Async::HTTP::Server.for(endpoint, dispatcher)
 		class Service
 			# Initialize a new service instance.

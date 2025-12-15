@@ -20,8 +20,15 @@ describe Async::GRPC::DispatcherMiddleware do
 	with "#register" do
 		it "can register a service" do
 			dispatcher = subject.new
-			dispatcher.register(service_name, service)
+			dispatcher.register(service)
 			expect(dispatcher.instance_variable_get(:@services)[service_name]).to be == service
+		end
+		
+		it "can register a service with custom name" do
+			dispatcher = subject.new
+			custom_name = "custom.Service"
+			dispatcher.register(service, name: custom_name)
+			expect(dispatcher.instance_variable_get(:@services)[custom_name]).to be == service
 		end
 	end
 	

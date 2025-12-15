@@ -109,7 +109,7 @@ require "async/grpc/dispatcher_middleware"
 dispatcher = Async::GRPC::DispatcherMiddleware.new
 
 service = GreeterService.new(GreeterInterface, "hello.Greeter")
-dispatcher.register("hello.Greeter", service)
+dispatcher.register(service)
 ```
 
 ### Running a Server
@@ -152,7 +152,7 @@ Async do
 		# Setup server
 	endpoint = Async::HTTP::Endpoint.parse("http://localhost:50051")
 	dispatcher = Async::GRPC::DispatcherMiddleware.new
-	dispatcher.register("hello.Greeter", GreeterService.new(GreeterInterface, "hello.Greeter"))
+	dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
 	server = Async::HTTP::Server.for(endpoint, dispatcher)
 	
 		# Setup client

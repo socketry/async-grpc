@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Simplified `DispatcherMiddleware#register` API to `register(service, name: service.service_name)`, eliminating redundant service name specification.
+
 ## v0.2.0
 
   - Added `Async::GRPC::RemoteError` class to encapsulate remote error details including message and backtrace extracted from response headers.
