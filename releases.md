@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.3.0
 
   - **Breaking**: Renamed `DispatcherMiddleware` to `Dispatcher` for cleaner API.
   - **Breaking**: Simplified `Dispatcher#register` API to `register(service, name: service.service_name)`, eliminating redundant service name specification.
