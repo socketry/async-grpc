@@ -104,4 +104,3 @@ describe Async::GRPC::Dispatcher do
 		end
 	end
 end
-
