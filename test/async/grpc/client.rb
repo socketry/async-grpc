@@ -185,7 +185,7 @@ AClient = Sus::Shared("a client") do
 				expect(false).to be == true # Should not reach here
 			rescue Protocol::GRPC::InvalidArgument => error
 				expect(error.metadata.key?("custom-key")).to be == true
-				expect(error.metadata["custom-key"]).to be == "custom-value"
+				expect(error.metadata["custom-key"]).to be == ["custom-value"]
 			end
 		end
 		
