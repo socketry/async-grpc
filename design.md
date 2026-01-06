@@ -483,8 +483,8 @@ middleware.register("my_service.Greeter", GreeterService.new)
 
 # Use with Async::HTTP::Server - it handles everything!
 endpoint = Async::HTTP::Endpoint.parse(
-		"https://localhost:50051",
-		protocol: Async::HTTP::Protocol::HTTP2
+	"https://localhost:50051",
+	protocol: Async::HTTP::Protocol::HTTP2
 )
 
 server = Async::HTTP::Server.new(middleware, endpoint)

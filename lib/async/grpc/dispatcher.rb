@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Released under the MIT License.
-# Copyright, 2025, by Samuel Williams.
+# Copyright, 2025-2026, by Samuel Williams.
 
 require "async"
 require "async/deadline"
@@ -35,12 +35,12 @@ module Async
 				@services = services
 			end
 			
-		# Register a service.
-		# @parameter service [Async::GRPC::Service] Service instance
-		# @parameter name [String] Service name (defaults to service.service_name)
-		def register(service, name: service.service_name)
-			@services[name] = service
-		end
+			# Register a service.
+			# @parameter service [Async::GRPC::Service] Service instance
+			# @parameter name [String] Service name (defaults to service.service_name)
+			def register(service, name: service.service_name)
+				@services[name] = service
+			end
 			
 			protected
 			

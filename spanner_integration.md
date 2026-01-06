@@ -205,11 +205,11 @@ client.unary_binary(service, method, request_binary) # => response_binary
 
 ```ruby
 client.unary(
-		service,
-		method,
-		request,
-		marshal: ->(obj){obj.to_proto},
-		unmarshal: ->(data){MyReply.decode(data)}
+	service,
+	method,
+	request,
+	marshal: ->(obj){obj.to_proto},
+	unmarshal: ->(data){MyReply.decode(data)}
 )
 ```
 
