@@ -20,6 +20,8 @@ module Async
 					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :unary
 				rpc :BidirectionalCall, request_class: Protocol::GRPC::Fixtures::TestMessage,
 					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :bidirectional
+				rpc :ClientStreamingCall, request_class: Protocol::GRPC::Fixtures::TestMessage,
+					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :client_streaming
 			end
 			
 			# Test service implementation
@@ -53,6 +55,16 @@ module Async
 					end
 					puts "Closing write"
 					output.close_write
+				end
+				
+				def client_streaming_call(input, output, _call)
+					# Read all input messages and return a summary
+					values = []
+					input.each do |request|
+						values << request.value
+					end
+					response = Protocol::GRPC::Fixtures::TestMessage.new(value: "Received: #{values.join(', ')}")
+					output.write(response)
 				end
 			end
 		end
