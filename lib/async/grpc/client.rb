@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Released under the MIT License.
-# Copyright, 2025, by Samuel Williams.
+# Copyright, 2025-2026, by Samuel Williams.
 
 require "async"
 require "async/http/client"
@@ -173,7 +173,7 @@ module Async
 					
 					if response_body
 						response_value = response_body.read
-						response_body.close
+						response_body.finish
 					end
 					
 					# Check status after reading body (trailers are now available)
@@ -215,10 +215,12 @@ module Async
 					# Check status after reading all body chunks (trailers are now available):
 					check_status!(response)
 					
+					# Nullify the response so we don't close it in ensure:
+					response = nil
+					
 					return response_body
-				rescue
-					response.close
-					raise
+				ensure
+					response&.close
 				end
 			end
 			
@@ -236,8 +238,11 @@ module Async
 				
 				http_request = Protocol::HTTP::Request["POST", path, headers, body]
 				
-				block.call(body) if block_given?
-				body.close_write unless body.closed?
+				if block_given?
+					block.call(body)
+				end
+				
+				body.close_write
 				
 				response = call(http_request)
 				
@@ -251,12 +256,12 @@ module Async
 					)
 					
 					message = readable_body.read
-					readable_body.close
+					readable_body.finish
 					
 					# Check status after reading body (trailers are now available):
 					check_status!(response)
 					
-					message
+					return message
 				ensure
 					response.close
 				end
@@ -289,25 +294,25 @@ module Async
 						encoding: response_encoding
 					)
 					
-					return readable_body unless block_given?
-					
-					begin
-						block.call(readable_body, body)
-						body.close_write unless body.closed?
-						
-						# Consume all response chunks to ensure trailers are available:
-						readable_body.each{|_|}
-					ensure
-						readable_body.close
+					unless block_given?
+						return readable_body
 					end
+					
+					block.call(body, readable_body)
+					body.close_write
+					
+					# Consume all response chunks to ensure trailers are available:
+					readable_body.finish
 					
 					# Check status after reading all body chunks (trailers are now available):
 					check_status!(response)
 					
-					readable_body
-				rescue StandardError
-					response.close
-					raise
+					# Nullify the response so we don't close it in ensure:
+					response = nil
+					
+					return readable_body
+				ensure
+					response&.close
 				end
 			end
 			

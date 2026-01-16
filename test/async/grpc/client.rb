@@ -57,6 +57,39 @@ AClient = Sus::Shared("a client") do
 		expect(responses[2].value).to be == "Response 2: stream"
 	end
 	
+	it "can make bidirectional streaming RPC call" do
+		grpc_client = Async::GRPC::Client.new(client)
+		stub = grpc_client.stub(Async::GRPC::Fixtures::TestInterface, service_name)
+		
+		sent_messages = [
+			Protocol::GRPC::Fixtures::TestMessage.new(value: "message1"),
+			Protocol::GRPC::Fixtures::TestMessage.new(value: "message2"),
+			Protocol::GRPC::Fixtures::TestMessage.new(value: "message3")
+		]
+		
+		received_messages = []
+		
+		stub.bidirectional_call do |output, input|
+			# Send messages:
+			sent_messages.each do |message|
+				output.write(message)
+			end
+			
+			# No more output:
+			output.close_write
+			
+			# Read responses:
+			input.each do |response|
+				received_messages << response
+			end
+		end
+		
+		expect(received_messages.length).to be == 3
+		expect(received_messages[0].value).to be == "Echo: message1"
+		expect(received_messages[1].value).to be == "Echo: message2"
+		expect(received_messages[2].value).to be == "Echo: message3"
+	end
+	
 	it "handles metadata" do
 		grpc_client = Async::GRPC::Client.new(client)
 		stub = grpc_client.stub(Async::GRPC::Fixtures::TestInterface, service_name)

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Released under the MIT License.
-# Copyright, 2025, by Samuel Williams.
+# Copyright, 2025-2026, by Samuel Williams.
 
 require "protocol/grpc/interface"
 require_relative "test_message"
@@ -18,6 +18,8 @@ module Async
 					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :server_streaming
 				rpc :SayHello, request_class: Protocol::GRPC::Fixtures::TestMessage,
 					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :unary
+				rpc :BidirectionalCall, request_class: Protocol::GRPC::Fixtures::TestMessage,
+					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :bidirectional
 			end
 			
 			# Test service implementation
@@ -41,6 +43,16 @@ module Async
 					request = input.read
 					response = Protocol::GRPC::Fixtures::TestMessage.new(value: "Hello, #{request.value}!")
 					output.write(response)
+				end
+				
+				def bidirectional_call(input, output, _call)
+					# Read all input messages and echo them back with a prefix
+					input.each do |request|
+						response = Protocol::GRPC::Fixtures::TestMessage.new(value: "Echo: #{request.value}")
+						output.write(response)
+					end
+					puts "Closing write"
+					output.close_write
 				end
 			end
 		end

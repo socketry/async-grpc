@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Fix handling of trailers.
+
 ## v0.3.0
 
   - **Breaking**: Renamed `DispatcherMiddleware` to `Dispatcher` for cleaner API.
