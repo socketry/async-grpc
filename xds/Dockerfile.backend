@@ -1,0 +1,21 @@
+FROM ruby:latest
+
+WORKDIR /app
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy gemfiles
+COPY gems.rb gems.locked ./
+RUN bundle install
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE ${PORT:-50051}
+
+# Run gRPC server
+CMD bundle exec ruby xds/backend_server.rb
