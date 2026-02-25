@@ -93,6 +93,29 @@ Check network connectivity:
 docker compose exec tests ping xds-control-plane
 ```
 
-### Port conflicts
+## Protobuf Setup
 
-If ports are already in use, modify `docker-compose.yaml` to use different ports.
+The xDS implementation uses Envoy protobuf definitions. Protos come from [envoyproxy/envoy](https://github.com/envoyproxy/envoy) (`api/`) or [envoyproxy/data-plane-api](https://github.com/envoyproxy/data-plane-api). Use **xDS v3** (v2 is deprecated).
+
+### Required protobuf files
+
+- `envoy/service/discovery/v3/discovery.proto` - DiscoveryRequest/Response.
+- `envoy/service/discovery/v3/ads.proto` - AggregatedDiscoveryService.
+- `envoy/config/cluster/v3/cluster.proto` - Cluster (CDS).
+- `envoy/config/endpoint/v3/endpoint.proto` - ClusterLoadAssignment (EDS).
+- `envoy/config/core/v3/base.proto` - Node, Locality, etc.
+- `google/protobuf/any.proto` - For Any type in DiscoveryResponse.
+
+### Generating Ruby code
+
+```bash
+protoc --ruby_out=lib \
+  --proto_path=vendor/envoy-api \
+  envoy/service/discovery/v3/discovery.proto \
+  envoy/service/discovery/v3/ads.proto \
+  envoy/config/cluster/v3/cluster.proto \
+  envoy/config/endpoint/v3/endpoint.proto \
+  envoy/config/core/v3/base.proto
+```
+
+Lock the Envoy API version (submodule tag or commit) for compatibility.

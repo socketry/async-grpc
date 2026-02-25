@@ -1,17 +1,14 @@
 services:
-  # xDS control plane (using go-control-plane test server)
+  # xDS control plane (using custom test server built with go-control-plane)
   # This provides a simple xDS server for testing
   xds-control-plane:
-    image: envoyproxy/go-control-plane:latest
-    command: >
-      /go-control-plane
-      -alsologtostderr
-      -v 2
-      -mode xds
-      -server_type ADS
-      -port 18000
+    build:
+      context: .
+      dockerfile: Dockerfile.control-plane
     ports:
       - "18000:18000"
+    environment:
+      - UPSTREAM=backend-1:50051,backend-2:50052,backend-3:50053
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "18000"]
       interval: 1s
@@ -23,6 +20,10 @@ services:
     build:
       context: ..
       dockerfile: xds/Dockerfile.backend
+    volumes:
+      - ../:/code
+    working_dir: /code
+    command: bundle exec ruby xds/backend_server.rb
     environment:
       - PORT=50051
       - SERVICE_NAME=myservice
@@ -38,6 +39,10 @@ services:
     build:
       context: ..
       dockerfile: xds/Dockerfile.backend
+    volumes:
+      - ../:/code
+    working_dir: /code
+    command: bundle exec ruby xds/backend_server.rb
     environment:
       - PORT=50052
       - SERVICE_NAME=myservice
@@ -53,6 +58,10 @@ services:
     build:
       context: ..
       dockerfile: xds/Dockerfile.backend
+    volumes:
+      - ../:/code
+    working_dir: /code
+    command: bundle exec ruby xds/backend_server.rb
     environment:
       - PORT=50053
       - SERVICE_NAME=myservice
@@ -71,8 +80,10 @@ services:
     working_dir: /code
     command: bash -c "bundle install && bundle exec sus xds/test"
     environment:
+      - CONSOLE_OUTPUT=XTerm
       - COVERAGE=${COVERAGE}
       - XDS_SERVER_URI=xds-control-plane:18000
+      - XDS_ENDPOINT_SCHEME=http
     depends_on:
       - xds-control-plane
       - backend-1

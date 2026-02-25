@@ -47,13 +47,14 @@ module Async
 					# Extract request from args (first positional argument):
 					request = args.first
 					
-					# Extract metadata, timeout, encoding from options:
+					# Extract metadata, timeout, encoding, initial from options:
 					metadata = options.delete(:metadata) || {}
 					timeout = options.delete(:timeout)
 					encoding = options.delete(:encoding)
+					initial = options.delete(:initial)
 					
 					# Delegate to client.invoke with PascalCase method name (for interface lookup):
-					@client.invoke(@interface, interface_method_name, request, metadata: metadata, timeout: timeout, encoding: encoding, &block)
+					@client.invoke(@interface, interface_method_name, request, metadata: metadata, timeout: timeout, encoding: encoding, initial: initial, &block)
 				else
 					super
 				end

@@ -7,22 +7,24 @@
 require "async"
 require "async/http/server"
 require "async/http/endpoint"
-require "protocol/grpc/middleware"
+require "async/grpc/dispatcher"
+require "async/grpc/service"
 require_relative "../fixtures/async/grpc/test_interface"
 
-class TestBackendService
-	def initialize(backend_id)
+class TestBackendService < Async::GRPC::Service
+	def initialize(interface_class, service_name, backend_id)
+		super(interface_class, service_name)
 		@backend_id = backend_id
 	end
 	
 	def unary_call(input, output, call)
 		request = input.read
 		
-		# Include backend ID in response metadata
-		call.set_metadata("backend-id", @backend_id)
+		# Include backend ID in response metadata (trailers)
+		call.response.headers["backend-id"] = @backend_id
 		
 		response = Protocol::GRPC::Fixtures::TestMessage.new(
-			value: "Response from #{@backend_id}: #{request.value}"
+			value: "Response from #{@backend_id}: #{request&.value || 'no value'}"
 		)
 		
 		output.write(response)
@@ -31,7 +33,7 @@ class TestBackendService
 	def say_hello(input, output, call)
 		request = input.read
 		
-		call.set_metadata("backend-id", @backend_id)
+		call.response.headers["backend-id"] = @backend_id
 		
 		response = Protocol::GRPC::Fixtures::TestMessage.new(
 			value: "Hello from #{@backend_id}, #{request.value}!"
@@ -46,21 +48,21 @@ backend_id = ENV["BACKEND_ID"] || "backend-unknown"
 service_name = ENV["SERVICE_NAME"] || "test.Service"
 
 Async do
-	# Create gRPC middleware
-	grpc = Protocol::GRPC::Middleware.new
-	service = TestBackendService.new(backend_id)
-	grpc.register(service_name, service)
+	# Create gRPC dispatcher
+	dispatcher = Async::GRPC::Dispatcher.new
+	service = TestBackendService.new(Async::GRPC::Fixtures::TestInterface, service_name, backend_id)
+	dispatcher.register(service)
 	
-	# Create endpoint
+	# Create endpoint (http for h2c - gRPC without TLS in docker)
 	endpoint = Async::HTTP::Endpoint.parse(
-		"https://0.0.0.0:#{port}",
+		"http://0.0.0.0:#{port}",
 		protocol: Async::HTTP::Protocol::HTTP2
 	)
 	
 	# Start server
-	server = Async::HTTP::Server.new(grpc, endpoint)
+	server = Async::HTTP::Server.new(dispatcher, endpoint)
 	
-	Console.logger.info(self){"Starting backend server #{backend_id} on port #{port}"}
+	Console.info{"Starting backend server #{backend_id} on port #{port}"}
 	
 	server.run
 end
