@@ -24,6 +24,10 @@ Please see the [project documentation](https://socketry.github.io/async-grpc/) f
 
 Please see the [project releases](https://socketry.github.io/async-grpc/releases/index) for all releases.
 
+### v0.5.0
+
+  - Fix handling of timeouts/deadlines.
+
 ### v0.4.0
 
   - Fix handling of trailers.

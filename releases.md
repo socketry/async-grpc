@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.5.0
 
   - Fix handling of timeouts/deadlines.
 
