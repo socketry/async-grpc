@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.5.1
 
   - Better error logging on timeout.
 
