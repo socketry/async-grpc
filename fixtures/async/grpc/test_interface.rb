@@ -22,6 +22,7 @@ module Async
 					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :bidirectional
 				rpc :ClientStreamingCall, request_class: Protocol::GRPC::Fixtures::TestMessage,
 					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :client_streaming
+				rpc :SlowCall
 			end
 			
 			# Test service implementation
@@ -53,7 +54,6 @@ module Async
 						response = Protocol::GRPC::Fixtures::TestMessage.new(value: "Echo: #{request.value}")
 						output.write(response)
 					end
-					puts "Closing write"
 					output.close_write
 				end
 				
@@ -64,6 +64,13 @@ module Async
 						values << request.value
 					end
 					response = Protocol::GRPC::Fixtures::TestMessage.new(value: "Received: #{values.join(', ')}")
+					output.write(response)
+				end
+				
+				def slow_call(input, output, _call)
+					request = input.read
+					sleep 1 # Simulate a slow operation
+					response = Protocol::GRPC::Fixtures::TestMessage.new(value: "Slow response: #{request.value}")
 					output.write(response)
 				end
 			end

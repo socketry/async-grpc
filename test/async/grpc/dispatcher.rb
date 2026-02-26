@@ -3,6 +3,8 @@
 # Released under the MIT License.
 # Copyright, 2025-2026, by Samuel Williams.
 
+require "sus/fixtures/async/scheduler_context"
+
 require "async/grpc/dispatcher"
 require "async/grpc/service"
 require "protocol/http"
@@ -101,6 +103,27 @@ describe Async::GRPC::Dispatcher do
 			response = dispatcher.call(non_grpc_request)
 			
 			expect(response.status).to be == 404
+		end
+		
+		it "handles timeout correctly" do
+			path = Protocol::GRPC::Methods.build_path(service_name, "SlowCall")
+			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+			request.headers["grpc-timeout"] = "100m" # 100 milliseconds
+			
+			response = dispatcher.call(request)
+			
+			expect(response.status).to be == 200
+			
+			# The response body should be consumed to access trailers:
+			response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: Protocol::GRPC::Fixtures::TestMessage)
+			response_body.finish
+			
+			# Check that grpc-status is DEADLINE_EXCEEDED (4):
+			status = Protocol::GRPC::Metadata.extract_status(response.headers)
+			expect(status).to be == Protocol::GRPC::Status::DEADLINE_EXCEEDED
+			
+			message = Protocol::GRPC::Metadata.extract_message(response.headers)
+			expect(message).to be == "Deadline exceeded"
 		end
 	end
 end

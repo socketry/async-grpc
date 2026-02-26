@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Fix handling of timeouts/deadlines.
+
 ## v0.4.0
 
   - Fix handling of trailers.
