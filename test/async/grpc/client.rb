@@ -168,7 +168,7 @@ AClient = Sus::Shared("a client") do
 						message = "Unknown error"
 					end
 					
-					Protocol::GRPC::Metadata.add_status!(call.response.headers, status: status, message: message)
+					Protocol::GRPC::Metadata.assign_status!(call.response.headers, status: status, message: message)
 				end
 			end.new(error_interface_class, error_service_name)
 		end

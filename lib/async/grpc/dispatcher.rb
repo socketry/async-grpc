@@ -59,7 +59,7 @@ module Async
 				if headers = call.response&.headers
 					# Only add OK status if grpc-status hasn't been set by the handler:
 					unless headers["grpc-status"]
-						Protocol::GRPC::Metadata.add_status!(headers, status: Protocol::GRPC::Status::OK)
+						Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::OK)
 					end
 				end
 			end
@@ -72,14 +72,14 @@ module Async
 				else
 					invoke_service(service, handler_method, input, output, call)
 				end
-			rescue Async::TimeoutError
+			rescue Async::TimeoutError => error
 				# Close input and output streams:
 				input.close
 				output.close_write unless output.closed?
 				
 				# Set DEADLINE_EXCEEDED status in trailers:
 				if headers = call.response&.headers
-					Protocol::GRPC::Metadata.add_status!(headers, status: Protocol::GRPC::Status::DEADLINE_EXCEEDED, message: "Deadline exceeded")
+					Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::DEADLINE_EXCEEDED, message: "Deadline exceeded!", error: error)
 				end
 			end
 			

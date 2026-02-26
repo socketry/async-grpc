@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Better error logging on timeout.
+
 ## v0.5.0
 
   - Fix handling of timeouts/deadlines.

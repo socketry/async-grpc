@@ -123,7 +123,7 @@ describe Async::GRPC::Dispatcher do
 			expect(status).to be == Protocol::GRPC::Status::DEADLINE_EXCEEDED
 			
 			message = Protocol::GRPC::Metadata.extract_message(response.headers)
-			expect(message).to be == "Deadline exceeded"
+			expect(message).to be == "Deadline exceeded!"
 		end
 	end
 end
