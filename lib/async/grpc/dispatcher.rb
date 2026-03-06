@@ -45,17 +45,26 @@ module Async
 			protected
 			
 			def invoke_service(service, handler_method, input, output, call)
+				# Mark the current header position so that any headers added after
+				# this point (e.g. grpc-status) are sent as HTTP/2 trailing headers
+				# rather than initial headers. The HTTP/2 server calls trailer! via
+				# send_response, but that happens after dispatch returns the response.
+				# By calling trailer! here first (@tail is set via ||= so the later
+				# call is a no-op), we ensure grpc-status ends up in the trailer
+				# portion of the headers.
+				call.response&.headers&.trailer!
+
 				begin
 					service.send(handler_method, input, output, call)
 				ensure
 					# Close input stream:
 					input.close
-					
+
 					# Close output stream:
 					output.close_write unless output.closed?
 				end
-				
-				# Mark trailers and add status (if not already set by handler):
+
+				# Add OK status as a trailer (if not already set by handler):
 				if headers = call.response&.headers
 					# Only add OK status if grpc-status hasn't been set by the handler:
 					unless headers["grpc-status"]
