@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy gemfiles, gemspec, and minimal lib files needed for gemspec
-# Note: gems.locked is gitignored, so we don't require it - bundle install will resolve deps
-COPY gems.rb *.gemspec ./
+# Run `bundle install` locally first to generate gems.locked for reproducible builds
+COPY gems.rb gems.locked *.gemspec ./
 COPY lib/async/grpc/version.rb lib/async/grpc/version.rb
 RUN bundle install
 

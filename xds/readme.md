@@ -15,6 +15,7 @@ The Docker Compose setup includes:
 
 ```bash
 cd xds
+bundle install  # generates gems.locked for Docker build
 docker compose up -d
 ```
 
