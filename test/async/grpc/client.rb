@@ -262,10 +262,11 @@ end
 describe Async::GRPC::Client do
 	include Sus::Fixtures::Async::HTTP::ServerContext
 	
-	with "http/1" do
-		let(:protocol) {Async::HTTP::Protocol::HTTP1}
-		it_behaves_like AClient
-	end
+	# Trailers are not well supported over HTTP/1.1, so tests are disabled.
+	# with "http/1" do
+	# 	let(:protocol) {Async::HTTP::Protocol::HTTP1}
+	# 	it_behaves_like AClient
+	# end
 	
 	with "http/2" do
 		let(:protocol) {Async::HTTP::Protocol::HTTP2}
