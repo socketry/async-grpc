@@ -1,0 +1,91 @@
+services:
+  # xDS control plane (using custom test server built with go-control-plane)
+  # This provides a simple xDS server for testing
+  xds-control-plane:
+    build:
+      context: .
+      dockerfile: Dockerfile.control-plane
+    ports:
+      - "18000:18000"
+    environment:
+      - UPSTREAM=backend-1:50051,backend-2:50052,backend-3:50053
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "18000"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  # Backend gRPC server 1
+  backend-1:
+    build:
+      context: ..
+      dockerfile: xds/Dockerfile.backend
+    volumes:
+      - ../:/code
+    working_dir: /code
+    command: bundle exec ruby xds/backend_server.rb
+    environment:
+      - PORT=50051
+      - SERVICE_NAME=myservice
+      - BACKEND_ID=backend-1
+    ports:
+      - "50051:50051"
+    depends_on:
+      xds-control-plane:
+        condition: service_healthy
+
+  # Backend gRPC server 2
+  backend-2:
+    build:
+      context: ..
+      dockerfile: xds/Dockerfile.backend
+    volumes:
+      - ../:/code
+    working_dir: /code
+    command: bundle exec ruby xds/backend_server.rb
+    environment:
+      - PORT=50052
+      - SERVICE_NAME=myservice
+      - BACKEND_ID=backend-2
+    ports:
+      - "50052:50052"
+    depends_on:
+      xds-control-plane:
+        condition: service_healthy
+
+  # Backend gRPC server 3
+  backend-3:
+    build:
+      context: ..
+      dockerfile: xds/Dockerfile.backend
+    volumes:
+      - ../:/code
+    working_dir: /code
+    command: bundle exec ruby xds/backend_server.rb
+    environment:
+      - PORT=50053
+      - SERVICE_NAME=myservice
+      - BACKEND_ID=backend-3
+    ports:
+      - "50053:50053"
+    depends_on:
+      xds-control-plane:
+        condition: service_healthy
+
+  # Test runner
+  tests:
+    image: ruby:${RUBY_VERSION:-latest}
+    volumes:
+      - ../:/code
+    working_dir: /code
+    command: bash -c "bundle install && bundle exec sus xds/test"
+    environment:
+      - CONSOLE_OUTPUT=XTerm
+      - COVERAGE=${COVERAGE}
+      - XDS_SERVER_URI=xds-control-plane:18000
+      - XDS_ENDPOINT_SCHEME=http
+    depends_on:
+      - xds-control-plane
+      - backend-1
+      - backend-2
+      - backend-3

@@ -1,0 +1,41 @@
+name: Test xDS
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+env:
+  CONSOLE_OUTPUT: XTerm
+
+jobs:
+  test:
+    name: ${{matrix.ruby}} on ${{matrix.os}}
+    runs-on: ${{matrix.os}}-latest
+    continue-on-error: ${{matrix.experimental}}
+    
+    strategy:
+      matrix:
+        os:
+          - ubuntu
+        
+        ruby:
+          - "3.3"
+          - "3.4"
+          - "4.0"
+        
+        experimental: [false]
+    
+    steps:
+    - uses: actions/checkout@v6
+    
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{matrix.ruby}}
+        bundler-cache: true
+    
+    - name: Run tests
+      timeout-minutes: 15
+      env:
+        RUBY_VERSION: ${{matrix.ruby}}
+      run: docker compose -f xds/docker-compose.yaml up --exit-code-from tests

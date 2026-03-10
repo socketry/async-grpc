@@ -1,0 +1,23 @@
+FROM golang:1.21-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git
+
+# Copy test server source
+WORKDIR /build
+COPY test_server.go go.mod ./
+
+# Download dependencies and build
+RUN go mod tidy && \
+    go mod download && \
+    go build -o /xds-test-server test_server.go
+
+FROM alpine:latest
+
+RUN apk add --no-cache netcat-openbsd ca-certificates
+
+COPY --from=builder /xds-test-server /xds-test-server
+
+EXPOSE 18000
+
+CMD ["/xds-test-server", "-port", "18000"]

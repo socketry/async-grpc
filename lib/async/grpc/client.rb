@@ -113,11 +113,12 @@ module Async
 			# @parameter metadata [Hash] Custom metadata headers
 			# @parameter timeout [Numeric | Nil] Optional timeout in seconds
 			# @parameter encoding [String | Nil] Optional compression encoding
+			# @parameter initial [Object | Array] Optional initial message(s) to send with the request body for bidirectional streaming (avoids deadlock when server waits for first message)
 			# @yields {|input, output| ...} Block for streaming calls
 			# @returns [Object | Protocol::GRPC::Body::ReadableBody] Response message or readable body for streaming
 			# @raises [ArgumentError] If method is unknown or streaming type is invalid
 			# @raises [Protocol::GRPC::Error] If the gRPC call fails
-			def invoke(service, method, request = nil, metadata: {}, timeout: nil, encoding: nil, &block)
+			def invoke(service, method, request = nil, metadata: {}, timeout: nil, encoding: nil, initial: nil, &block)
 				rpc = service.class.lookup_rpc(method)
 				raise ArgumentError, "Unknown method: #{method}" unless rpc
 				
@@ -141,7 +142,7 @@ module Async
 				when :client_streaming
 					client_streaming_call(path, headers, request_class, response_class, encoding, &block)
 				when :bidirectional
-					bidirectional_call(path, headers, request_class, response_class, encoding, &block)
+					bidirectional_call(path, headers, request_class, response_class, encoding, initial: initial, &block)
 				else
 					raise ArgumentError, "Unknown streaming type: #{streaming}"
 				end
@@ -273,14 +274,16 @@ module Async
 			# @parameter request_class [Class] Request message class
 			# @parameter response_class [Class] Response message class
 			# @parameter encoding [String | Nil] Compression encoding
+			# @parameter initial [Object | Array | Nil] Optional initial message(s) to send with the request body (avoids deadlock when server waits for first message)
 			# @yields {|input, output| ...} Block to handle bidirectional streaming
 			# @returns [Protocol::GRPC::Body::ReadableBody] Readable body for streaming messages
 			# @raises [Protocol::GRPC::Error] If the gRPC call fails
-			def bidirectional_call(path, headers, request_class, response_class, encoding, &block)
+			def bidirectional_call(path, headers, request_class, response_class, encoding, initial: nil, &block)
 				body = Protocol::GRPC::Body::WritableBody.new(
 					encoding: encoding,
 					message_class: request_class
 				)
+				Array(initial).each{|message| body.write(message)}
 				
 				http_request = Protocol::HTTP::Request["POST", path, headers, body]
 				response = call(http_request)
