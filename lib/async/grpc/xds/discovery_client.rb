@@ -114,13 +114,15 @@ module Async
 									raise
 								rescue => error
 									Console.error(self, error)
+									
 									@mutex.synchronize do
 										@grpc_client&.close
 										@grpc_client = nil
 										@ads_stream = nil
 										@stream_ready_promise = Async::Promise.new
 									end
-									task.sleep(backoff)
+									
+									sleep(backoff)
 									backoff = [backoff * 2, 60].min
 								end
 							end
@@ -129,33 +131,23 @@ module Async
 				end
 				
 				def create_and_run_ads_stream(task)
-					begin
-						# Create gRPC client
-						server_uri = @server_uri
-						unless server_uri.match?(/^https?:\/\//)
-							use_insecure = @channel_creds&.any?{|cred| cred[:type] == "insecure"}
-							scheme = use_insecure ? "http" : "https"
-							server_uri = "#{scheme}://#{server_uri}"
-						end
-						Console.info(self){"Connecting to xDS server: #{server_uri}"}
-						endpoint = Async::HTTP::Endpoint.parse(server_uri, protocol: Async::HTTP::Protocol::HTTP2)
-						http_client = Async::HTTP::Client.new(endpoint)
-						grpc_client = Async::GRPC::Client.new(http_client)
-						
-						@mutex.synchronize{@grpc_client = grpc_client}
-						
-						# ADSStream owns the stream; we act as delegate receiving discovery_response events
-						ads_stream = ADSStream.new(grpc_client, @node, delegate: self)
-						ads_stream.run(initial: build_initial_requests)
-					rescue => error
-						Console.error(self, "Failed to create ADS stream: #{error.message}")
-						@mutex.synchronize do
-							@grpc_client&.close
-							@grpc_client = nil
-							@ads_stream = nil
-						end
-						raise
+					# Create gRPC client
+					server_uri = @server_uri
+					unless server_uri.match?(/^https?:\/\//)
+						use_insecure = @channel_creds&.any?{|cred| cred[:type] == "insecure"}
+						scheme = use_insecure ? "http" : "https"
+						server_uri = "#{scheme}://#{server_uri}"
 					end
+					Console.debug(self, "Connecting to xDS server:", server_uri: server_uri)
+					endpoint = Async::HTTP::Endpoint.parse(server_uri, protocol: Async::HTTP::Protocol::HTTP2)
+					http_client = Async::HTTP::Client.new(endpoint)
+					grpc_client = Async::GRPC::Client.new(http_client)
+					
+					@mutex.synchronize{@grpc_client = grpc_client}
+					
+					# ADSStream owns the stream; we act as delegate receiving discovery_response events
+					ads_stream = ADSStream.new(grpc_client, @node, delegate: self)
+					ads_stream.run(initial: build_initial_requests)
 				end
 				
 			# ADSStream::Delegate interface - must be public for ADSStream to call
