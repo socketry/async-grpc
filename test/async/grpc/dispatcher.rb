@@ -9,6 +9,7 @@ require "async/grpc/dispatcher"
 require "async/grpc/service"
 require "protocol/http"
 require "protocol/grpc/methods"
+require "protocol/grpc/metadata"
 require "protocol/grpc/body/writable_body"
 require "async/grpc/test_interface"
 
@@ -124,6 +125,96 @@ describe Async::GRPC::Dispatcher do
 			
 			message = Protocol::GRPC::Metadata.extract_message(response.headers)
 			expect(message).to be == "Deadline exceeded!"
+		end
+		
+		with "trailer behaviour when response has data frames" do
+			# When a handler writes data frames, grpc-status must be sent as a trailer (not a header).
+			# Without trailer! before assign_status!, the status could end up in the wrong place.
+			# See dispatcher.rb:58-60.
+			it "marks headers as trailers for unary response with data" do
+				response = dispatcher.call(request)
+				
+				# Consume the response body so we can verify the full response structure
+				response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: Protocol::GRPC::Fixtures::TestMessage)
+				response_body.read
+				response_body.finish
+				
+				expect(response.headers).to be(:trailer?)
+				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::OK
+			end
+			
+			it "marks headers as trailers for server streaming response with data" do
+				path = Protocol::GRPC::Methods.build_path(service_name, "ServerStreamingCall")
+				request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+				
+				response = dispatcher.call(request)
+				
+				# Consume all streamed messages
+				response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: Protocol::GRPC::Fixtures::TestMessage)
+				response_body.each{|_|}
+				response_body.finish
+				
+				expect(response.headers).to be(:trailer?)
+				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::OK
+			end
+			
+			it "marks headers as trailers when handler explicitly sets status with data" do
+				error_service_name = "test.ErrorWithDataService"
+				error_interface = Class.new(Protocol::GRPC::Interface) do
+					rpc :WriteThenError, request_class: Protocol::GRPC::Fixtures::TestMessage,
+						response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :unary
+				end
+				error_service = Class.new(Async::GRPC::Service) do
+					define_method(:write_then_error) do |input, output, call|
+						request = input.read
+						output.write(Protocol::GRPC::Fixtures::TestMessage.new(value: "partial: #{request.value}"))
+						Protocol::GRPC::Metadata.assign_status!(call.response.headers, status: Protocol::GRPC::Status::INTERNAL, message: "Error after data")
+					end
+				end.new(error_interface, error_service_name)
+				dispatcher = subject.new(services: {error_service_name => error_service})
+				
+				path = Protocol::GRPC::Methods.build_path(error_service_name, "WriteThenError")
+				request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+				
+				response = dispatcher.call(request)
+				
+				response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: Protocol::GRPC::Fixtures::TestMessage)
+				response_body.read
+				response_body.finish
+				
+				expect(response.headers).to be(:trailer?)
+				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::INTERNAL
+				expect(Protocol::GRPC::Metadata.extract_message(response.headers)).to be == "Error after data"
+			end
+		end
+		
+		with "trailers-only response (no data frames)" do
+			# When a handler writes no data frames, grpc-status is sent in the header frame.
+			# We do NOT call trailer! (output.count == 0), so assign_status! adds to headers.
+			it "sends grpc-status in headers when handler sets status without writing data" do
+				trailers_only_service_name = "test.TrailersOnlyService"
+				trailers_only_interface = Class.new(Protocol::GRPC::Interface) do
+					rpc :ErrorOnly, request_class: Protocol::GRPC::Fixtures::TestMessage,
+						response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :unary
+				end
+				trailers_only_service = Class.new(Async::GRPC::Service) do
+					define_method(:error_only) do |input, output, call|
+						input.read
+						Protocol::GRPC::Metadata.assign_status!(call.response.headers, status: Protocol::GRPC::Status::NOT_FOUND, message: "Not found")
+					end
+				end.new(trailers_only_interface, trailers_only_service_name)
+				dispatcher = subject.new(services: {trailers_only_service_name => trailers_only_service})
+				
+				path = Protocol::GRPC::Methods.build_path(trailers_only_service_name, "ErrorOnly")
+				request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+				
+				response = dispatcher.call(request)
+				
+				# No data to consume; grpc-status is in the header frame
+				expect(response.headers).not.to be(:trailer?)
+				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::NOT_FOUND
+				expect(Protocol::GRPC::Metadata.extract_message(response.headers)).to be == "Not found"
+			end
 		end
 	end
 end

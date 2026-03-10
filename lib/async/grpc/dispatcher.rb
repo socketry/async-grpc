@@ -53,12 +53,17 @@ module Async
 					
 					# Close output stream:
 					output.close_write unless output.closed?
+					
+					# gRPC supports trailers-only responses, but only if there are no data frames. If at this point, there are data frames (which may or may not have been sent yet), we need to mark trailers:
+					if output.count > 0
+						call.response.headers.trailer!
+					end
 				end
 				
-				# Mark trailers and add status (if not already set by handler):
+				# Add status (if not already set by handler):
 				if headers = call.response&.headers
 					# Only add OK status if grpc-status hasn't been set by the handler:
-					unless headers["grpc-status"]
+					unless headers.key?("grpc-status")
 						Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::OK)
 					end
 				end
@@ -148,7 +153,7 @@ module Async
 					dispatch_to_service(service, handler_method, input, output, call, deadline)
 				end
 				
-				response
+				return response
 			end
 		end
 	end

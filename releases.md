@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Ensure `grpc-status` (and related metadata) is sent as a trailer, if data frames are written.
+
 ## v0.5.1
 
   - Better error logging on timeout.
