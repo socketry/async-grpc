@@ -223,7 +223,7 @@ module Async
 				
 				def process_response(response, stream)
 					type_url = response.type_url
-					Console.info(self){"Processing response for type_url: #{type_url}"}
+					Console.debug(self, "Processing response:", type_url: type_url)
 					
 					callback = nil
 					resources = nil
@@ -232,7 +232,7 @@ module Async
 					@mutex.synchronize do
 						subscription = @subscriptions[type_url]
 						unless subscription
-							Console.warn(self){"No subscription found for type_url: #{type_url}"}
+							Console.warn(self){"No subscription found!", type_url: type_url}
 							return
 						end
 						
@@ -254,7 +254,7 @@ module Async
 					if callback
 						callback.call(resources)
 					else
-						Console.warn(self){"No callback found for type_url: #{type_url}"}
+						Console.warn(self, "No callback found!", type_url: type_url)
 					end
 					
 					# Send ACK (acknowledge receipt)
