@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.6.0
 
   - Ensure `grpc-status` (and related metadata) is sent as a trailer, if data frames are written.
 

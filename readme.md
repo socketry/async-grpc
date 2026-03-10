@@ -24,6 +24,10 @@ Please see the [project documentation](https://socketry.github.io/async-grpc/) f
 
 Please see the [project releases](https://socketry.github.io/async-grpc/releases/index) for all releases.
 
+### v0.6.0
+
+  - Ensure `grpc-status` (and related metadata) is sent as a trailer, if data frames are written.
+
 ### v0.5.1
 
   - Better error logging on timeout.
