@@ -109,7 +109,24 @@ AClient = Sus::Shared("a client") do
 		expect(received_messages[1].value).to be == "Echo: message2"
 		expect(received_messages[2].value).to be == "Echo: message3"
 	end
-	
+	it "can send initial bidirectional streaming messages before receiving a response" do
+		grpc_client = Async::GRPC::Client.new(client)
+		stub = grpc_client.stub(Async::GRPC::Fixtures::TestInterface, service_name)
+		initial_messages = [
+			Protocol::GRPC::Fixtures::TestMessage.new(value: "initial1"),
+			Protocol::GRPC::Fixtures::TestMessage.new(value: "initial2")
+		]
+		received_messages = []
+		stub.bidirectional_call(initial: initial_messages) do |output, input|
+			output.close_write
+			input.each do |response|
+				received_messages << response
+			end
+		end
+		expect(received_messages.length).to be == 2
+		expect(received_messages[0].value).to be == "Echo: initial1"
+		expect(received_messages[1].value).to be == "Echo: initial2"
+	end
 	it "handles metadata" do
 		grpc_client = Async::GRPC::Client.new(client)
 		stub = grpc_client.stub(Async::GRPC::Fixtures::TestInterface, service_name)
@@ -262,6 +279,65 @@ end
 describe Async::GRPC::Client do
 	include Sus::Fixtures::Async::HTTP::ServerContext
 	
+	it "can connect to an endpoint" do
+		endpoint = Async::HTTP::Endpoint.parse("http://localhost:0")
+		client = subject.connect(endpoint)
+		expect(client).to be_a(Async::HTTP::Client)
+		client.close
+	end
+	it "can open a client for an endpoint" do
+		client = subject.open("http://localhost:0")
+		expect(client).to be_a(subject)
+		client.close
+	end
+	it "closes an opened client after yielding it" do
+		closed = false
+		delegate = Object.new
+		delegate.define_singleton_method(:close){closed = true}
+		mock(subject) do |mock|
+			mock.replace(:connect){delegate}
+			result = subject.open("http://localhost:0") do |client|
+				expect(client).to be_a(subject)
+				:result
+			end
+			expect(result).to be == :result
+		end
+		expect(closed).to be == true
+	end
+	it "can create a client with merged headers" do
+		headers = Protocol::HTTP::Headers.new
+		headers["authorization"] = "Bearer token"
+		parent = subject.new(Object.new, headers: headers)
+		child = subject.with(parent, headers: {"x-test" => "true"})
+		expect(child.headers["authorization"]).to be == "Bearer token"
+		expect(child.headers["x-test"]).to be == ["true"]
+	end
+	it "has useful string representations" do
+		client = subject.new(Object.new)
+		expect(client.inspect).to be == "\#<Async::GRPC::Client #<Protocol::HTTP::Headers []>>"
+		expect(client.to_s).to be == "\#<Async::GRPC::Client>"
+	end
+	it "raises an error for an unknown streaming type" do
+		interface_class = Class.new(Protocol::GRPC::Interface) do
+			rpc :BadCall, request_class: Protocol::GRPC::Fixtures::TestMessage,
+				response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :bogus
+		end
+		client = subject.new(Object.new)
+		service = interface_class.new("test.Bad")
+		expect do
+			client.invoke(service, :BadCall)
+		end.to raise_exception(ArgumentError, message: be == "Unknown streaming type: bogus")
+	end
+	it "can return a bidirectional readable body without a block" do
+		client = subject.new(Object.new)
+		response = Protocol::HTTP::Response[200, Protocol::HTTP::Headers.new, []]
+		mock(client) do |mock|
+			mock.replace(:call){response}
+			body = client.send(:bidirectional_call, "/test.Service/BidirectionalCall", Protocol::HTTP::Headers.new,
+				Protocol::GRPC::Fixtures::TestMessage, Protocol::GRPC::Fixtures::TestMessage, nil)
+			expect(body).to be_a(Protocol::GRPC::Body::ReadableBody)
+		end
+	end
 	with "http/1" do
 		let(:protocol) {Async::HTTP::Protocol::HTTP1}
 		it_behaves_like AClient

@@ -95,6 +95,27 @@ describe Async::GRPC::Dispatcher do
 			expect(status).to be == Protocol::GRPC::Status::UNIMPLEMENTED
 		end
 		
+		it "returns UNIMPLEMENTED for a service name mismatch" do
+			dispatcher = subject.new(services: {"wrong.Service" => service})
+			path = Protocol::GRPC::Methods.build_path("wrong.Service", "UnaryCall")
+			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+			response = dispatcher.call(request)
+			status = Protocol::GRPC::Metadata.extract_status(response.headers)
+			expect(status).to be == Protocol::GRPC::Status::UNIMPLEMENTED
+		end
+		it "returns UNIMPLEMENTED for an unimplemented handler" do
+			interface = Class.new(Protocol::GRPC::Interface) do
+				rpc :MissingCall, request_class: Protocol::GRPC::Fixtures::TestMessage,
+					response_class: Protocol::GRPC::Fixtures::TestMessage, streaming: :unary
+			end
+			service = Async::GRPC::Service.new(interface, "test.MissingService")
+			dispatcher = subject.new(services: {"test.MissingService" => service})
+			path = Protocol::GRPC::Methods.build_path("test.MissingService", "MissingCall")
+			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+			response = dispatcher.call(request)
+			status = Protocol::GRPC::Metadata.extract_status(response.headers)
+			expect(status).to be == Protocol::GRPC::Status::UNIMPLEMENTED
+		end
 		it "passes non-gRPC requests to next middleware" do
 			next_middleware = proc{Protocol::HTTP::Response[404, {}, ["Not Found"]]}
 			dispatcher = subject.new(next_middleware, services: { service_name => service })

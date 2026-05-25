@@ -19,7 +19,9 @@ end
 
 group :test do
 	gem "covered"
-	gem "decode"
+	install_if ->{RUBY_ENGINE == "ruby"} do
+		gem "decode"
+	end
 	gem "sus"
 	
 	gem "rubocop"
