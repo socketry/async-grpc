@@ -36,7 +36,7 @@ module Async
 			# Uses snake_case method names (Ruby convention).
 			# @parameter method_name [Symbol] The method name to call (snake_case)
 			# @parameter args [Array] Positional arguments (first is the request message)
-			# @parameter options [Hash] Keyword arguments (metadata, timeout, encoding)
+			# @parameter options [Hash] Keyword arguments (metadata, timeout, encoding, initial)
 			# @yields {|input, output| ...} Block for streaming calls
 			# @returns [Object | Protocol::GRPC::Body::ReadableBody] Response message or readable body
 			# @raises [NoMethodError] If the method is not found
@@ -47,13 +47,14 @@ module Async
 					# Extract request from args (first positional argument):
 					request = args.first
 					
-					# Extract metadata, timeout, encoding from options:
+					# Extract metadata, timeout, encoding and initial messages from options:
 					metadata = options.delete(:metadata) || {}
 					timeout = options.delete(:timeout)
 					encoding = options.delete(:encoding)
+					initial = options.delete(:initial)
 					
 					# Delegate to client.invoke with PascalCase method name (for interface lookup):
-					@client.invoke(@interface, interface_method_name, request, metadata: metadata, timeout: timeout, encoding: encoding, &block)
+					@client.invoke(@interface, interface_method_name, request, metadata: metadata, timeout: timeout, encoding: encoding, initial: initial, &block)
 				else
 					super
 				end
