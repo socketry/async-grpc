@@ -16,7 +16,7 @@ require "protocol/grpc/body/writable_body"
 require "protocol/grpc/metadata"
 require "protocol/grpc/error"
 require_relative "stub"
-require_relative "remote_error"
+require_relative "error"
 
 module Async
 	module GRPC

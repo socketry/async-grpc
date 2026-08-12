@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Added `Async::GRPC::Error` as the base class for async gRPC errors, including `RemoteError` and the new `DeadlineExceededError` used to distinguish call deadline expiry from unrelated `Async::TimeoutError` failures.
+
 ## v0.6.0
 
   - Ensure `grpc-status` (and related metadata) is sent as a trailer, if data frames are written.
