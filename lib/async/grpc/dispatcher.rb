@@ -6,6 +6,8 @@
 require "async"
 require "async/deadline"
 
+require_relative "deadline_exceeded"
+
 require "protocol/grpc/middleware"
 require "protocol/grpc/methods"
 require "protocol/grpc/call"
@@ -71,13 +73,13 @@ module Async
 			
 			def dispatch_to_service(service, handler_method, input, output, call, deadline, parent: Async::Task.current)
 				if deadline
-					parent.with_timeout(deadline.remaining) do
+					parent.with_timeout(deadline.remaining, DeadlineExceeded) do
 						invoke_service(service, handler_method, input, output, call)
 					end
 				else
 					invoke_service(service, handler_method, input, output, call)
 				end
-			rescue Async::TimeoutError => error
+			rescue DeadlineExceeded => error
 				# Close input and output streams:
 				input.close
 				output.close_write unless output.closed?
