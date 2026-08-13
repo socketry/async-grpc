@@ -4,7 +4,6 @@
 # Copyright, 2025-2026, by Samuel Williams.
 
 require "async"
-require "async/deadline"
 
 require_relative "error"
 
@@ -71,8 +70,8 @@ module Async
 				end
 			end
 			
-			def dispatch_to_service(service, handler_method, input, output, call, deadline, parent: Async::Task.current)
-				if deadline
+			def dispatch_to_service(service, handler_method, input, output, call, parent: Async::Task.current)
+				if deadline = call.deadline
 					parent.with_timeout(deadline.remaining, DeadlineExceededError) do
 						invoke_service(service, handler_method, input, output, call)
 					end
@@ -137,22 +136,16 @@ module Async
 				# Create response object:
 				response = Protocol::HTTP::Response[200, response_headers, output]
 				
-				# Parse deadline from timeout header:
-				timeout = Protocol::GRPC::Methods.parse_timeout(request.headers["grpc-timeout"])
-				deadline = if timeout
-					Async::Deadline.start(timeout)
-				end
-				
-				# Create call context with request and response:
-				call = Protocol::GRPC::Call.new(request, response, deadline: deadline)
+				# Create call context with request, response and deadline:
+				call = Protocol::GRPC::Call.for(request, response)
 				
 				if rpc_descriptor.streaming?
 					Async do |task|
-						dispatch_to_service(service, handler_method, input, output, call, deadline, parent: task)
+						dispatch_to_service(service, handler_method, input, output, call, parent: task)
 					end
 				else
 					# Unary call:
-					dispatch_to_service(service, handler_method, input, output, call, deadline)
+					dispatch_to_service(service, handler_method, input, output, call)
 				end
 				
 				return response
