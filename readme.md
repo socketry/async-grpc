@@ -24,6 +24,10 @@ Please see the [project documentation](https://socketry.github.io/async-grpc/) f
 
 Please see the [project releases](https://socketry.github.io/async-grpc/releases/index) for all releases.
 
+### v0.8.0
+
+  - Added `Async::GRPC::Error` as the base class for async gRPC errors, including `RemoteError` and the new `DeadlineExceededError` used to distinguish call deadline expiry from unrelated `Async::TimeoutError` failures.
+
 ### v0.6.0
 
   - Ensure `grpc-status` (and related metadata) is sent as a trailer, if data frames are written.
