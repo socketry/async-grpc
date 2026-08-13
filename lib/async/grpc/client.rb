@@ -10,7 +10,6 @@ require "async/http/endpoint"
 require "protocol/http"
 require "protocol/grpc"
 require "protocol/grpc/interface"
-require "protocol/grpc/methods"
 require "protocol/grpc/body/readable_body"
 require "protocol/grpc/body/writable_body"
 require "protocol/grpc/metadata"
@@ -123,7 +122,7 @@ module Async
 				raise ArgumentError, "Unknown method: #{method}" unless rpc
 				
 				path = service.path(method)
-				headers = Protocol::GRPC::Methods.build_headers(
+				headers = Protocol::GRPC::Metadata.build(
 					metadata: metadata,
 					timeout: timeout,
 					content_type: "application/grpc+proto"
@@ -328,7 +327,7 @@ module Async
 				return if status == Protocol::GRPC::Status::OK
 				
 				message = Protocol::GRPC::Metadata.extract_message(response.headers)
-				metadata = Protocol::GRPC::Methods.extract_metadata(response.headers)
+				metadata = Protocol::GRPC::Metadata.extract(response.headers)
 				
 				remote_error = RemoteError.for(message, metadata)
 				

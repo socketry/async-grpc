@@ -8,7 +8,7 @@ require "sus/fixtures/async/scheduler_context"
 require "async/grpc/dispatcher"
 require "async/grpc/service"
 require "protocol/http"
-require "protocol/grpc/methods"
+require "protocol/grpc/route"
 require "protocol/grpc/metadata"
 require "protocol/grpc/body/writable_body"
 require "async/grpc/test_interface"
@@ -44,8 +44,8 @@ describe Async::GRPC::Dispatcher do
 			end
 		end
 		
-		let(:headers) {Protocol::GRPC::Methods.build_headers}
-		let(:path) {Protocol::GRPC::Methods.build_path(service_name, "UnaryCall")}
+		let(:headers) {Protocol::GRPC::Metadata.build}
+		let(:path) {Protocol::GRPC::Route.build(service_name, "UnaryCall")}
 		let(:request) {Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)}
 		
 		it "dispatches to registered service" do
@@ -62,7 +62,7 @@ describe Async::GRPC::Dispatcher do
 		end
 		
 		it "handles CamelCase method names" do
-			path = Protocol::GRPC::Methods.build_path(service_name, "SayHello")
+			path = Protocol::GRPC::Route.build(service_name, "SayHello")
 			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
 			
 			response = dispatcher.call(request)
@@ -76,7 +76,7 @@ describe Async::GRPC::Dispatcher do
 		end
 		
 		it "returns UNIMPLEMENTED for unknown service" do
-			path = Protocol::GRPC::Methods.build_path("unknown.Service", "UnaryCall")
+			path = Protocol::GRPC::Route.build("unknown.Service", "UnaryCall")
 			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
 			
 			response = dispatcher.call(request)
@@ -87,7 +87,7 @@ describe Async::GRPC::Dispatcher do
 		end
 		
 		it "returns UNIMPLEMENTED for unknown method" do
-			path = Protocol::GRPC::Methods.build_path(service_name, "UnknownMethod")
+			path = Protocol::GRPC::Route.build(service_name, "UnknownMethod")
 			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
 			
 			response = dispatcher.call(request)
@@ -107,7 +107,7 @@ describe Async::GRPC::Dispatcher do
 		end
 		
 		it "handles timeout correctly" do
-			path = Protocol::GRPC::Methods.build_path(service_name, "SlowCall")
+			path = Protocol::GRPC::Route.build(service_name, "SlowCall")
 			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
 			request.headers["grpc-timeout"] = "100m" # 100 milliseconds
 			
@@ -144,7 +144,7 @@ describe Async::GRPC::Dispatcher do
 			end
 			
 			it "marks headers as trailers for server streaming response with data" do
-				path = Protocol::GRPC::Methods.build_path(service_name, "ServerStreamingCall")
+				path = Protocol::GRPC::Route.build(service_name, "ServerStreamingCall")
 				request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
 				
 				response = dispatcher.call(request)
@@ -173,7 +173,7 @@ describe Async::GRPC::Dispatcher do
 				end.new(error_interface, error_service_name)
 				dispatcher = subject.new(services: {error_service_name => error_service})
 				
-				path = Protocol::GRPC::Methods.build_path(error_service_name, "WriteThenError")
+				path = Protocol::GRPC::Route.build(error_service_name, "WriteThenError")
 				request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
 				
 				response = dispatcher.call(request)
@@ -205,7 +205,7 @@ describe Async::GRPC::Dispatcher do
 				end.new(trailers_only_interface, trailers_only_service_name)
 				dispatcher = subject.new(services: {trailers_only_service_name => trailers_only_service})
 				
-				path = Protocol::GRPC::Methods.build_path(trailers_only_service_name, "ErrorOnly")
+				path = Protocol::GRPC::Route.build(trailers_only_service_name, "ErrorOnly")
 				request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
 				
 				response = dispatcher.call(request)

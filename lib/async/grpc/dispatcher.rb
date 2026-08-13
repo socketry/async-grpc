@@ -8,8 +8,8 @@ require "async"
 require_relative "error"
 
 require "protocol/grpc/middleware"
-require "protocol/grpc/methods"
 require "protocol/grpc/call"
+require "protocol/grpc/route"
 require "protocol/grpc/body/readable_body"
 require "protocol/grpc/body/writable_body"
 require "protocol/grpc/metadata"
@@ -113,8 +113,8 @@ module Async
 			# @returns [Protocol::HTTP::Response] The HTTP response
 			# @raises [Protocol::GRPC::Error] If service or method is not found
 			def dispatch(request)
-				# Parse service and method from path:
-				service_name, method_name = Protocol::GRPC::Methods.parse_path(request.path)
+				# Extract the routing information from the request path:
+				service_name, method_name = Protocol::GRPC::Route.parse(request.path)
 				
 				# Find service:
 				service = @services[service_name]
@@ -155,7 +155,7 @@ module Async
 				# Create response object:
 				response = Protocol::HTTP::Response[200, response_headers, output]
 				
-				# Create call context with request, response and deadline:
+				# Create the call context:
 				call = Protocol::GRPC::Call.for(request, response)
 				
 				if rpc_descriptor.streaming?
