@@ -45,6 +45,25 @@ module Async
 			
 			protected
 			
+			# Invoke a service handler, providing a protected extension point for middleware and instrumentation around service execution.
+			#
+			# Override this method to observe service outcomes, establish request context, or wrap handlers with application middleware. Overrides should call `super` to invoke the handler and preserve the dispatcher's stream cleanup, trailer handling, and successful status assignment.
+			#
+			# This hook only surrounds service handler execution. Errors raised earlier while routing or preparing the request do not pass through it. A call deadline that expires during service execution raises {DeadlineExceededError} through this hook before the dispatcher converts it to a `DEADLINE_EXCEEDED` response.
+			#
+			# @parameter service [Async::GRPC::Service] The service containing the handler.
+			# @parameter handler_method [Symbol] The service method to invoke.
+			# @parameter input [Protocol::GRPC::Body::ReadableBody] The decoded request stream.
+			# @parameter output [Protocol::GRPC::Body::WritableBody] The response stream.
+			# @parameter call [Protocol::GRPC::Call] The call context.
+			# @returns [Object | Nil] An internal dispatch result with no stable application-facing contract.
+			# @example Wrap service execution with application middleware
+			# 	def invoke_service(service, handler_method, input, output, call)
+			# 		context = RequestContext.new(call.request)
+			# 		middleware.call(context) do
+			# 			super
+			# 		end
+			# 	end
 			def invoke_service(service, handler_method, input, output, call)
 				begin
 					service.send(handler_method, input, output, call)
