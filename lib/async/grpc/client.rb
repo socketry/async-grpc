@@ -276,6 +276,7 @@ module Async
 			# @parameter initial [Object | Array | Nil] Optional initial message(s) to write before waiting for the response
 			# @yields {|input, output| ...} Block to handle bidirectional streaming
 			# @returns [Protocol::GRPC::Body::ReadableBody] Readable body for streaming messages
+			# Without a block, `initial` is sent as the complete request stream and the caller owns the returned readable body.
 			# @raises [Protocol::GRPC::Error] If the gRPC call fails
 			def bidirectional_call(path, headers, request_class, response_class, encoding, initial: nil, &block)
 				body = Protocol::GRPC::Body::WritableBody.new(
@@ -283,6 +284,7 @@ module Async
 					message_class: request_class
 				)
 				Array(initial).each{|message| body.write(message)}
+				body.close_write unless block_given?
 				
 				http_request = Protocol::HTTP::Request["POST", path, headers, body]
 				response = call(http_request)
@@ -297,6 +299,8 @@ module Async
 					)
 					
 					unless block_given?
+						# The caller owns the readable body and its underlying response:
+						response = nil
 						return readable_body
 					end
 					
