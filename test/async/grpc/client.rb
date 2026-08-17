@@ -127,6 +127,28 @@ AClient = Sus::Shared("a client") do
 		expect(received_messages[0].value).to be == "Echo: initial1"
 		expect(received_messages[1].value).to be == "Echo: initial2"
 	end
+	
+	it "can return a bidirectional response stream for initial messages" do
+		grpc_client = Async::GRPC::Client.new(client)
+		stub = grpc_client.stub(Async::GRPC::Fixtures::TestInterface, service_name)
+		initial_messages = [
+			Protocol::GRPC::Fixtures::TestMessage.new(value: "initial1"),
+			Protocol::GRPC::Fixtures::TestMessage.new(value: "initial2")
+		]
+		
+		input = stub.bidirectional_call(initial: initial_messages)
+		begin
+			received_messages = []
+			while message = input.read
+				received_messages << message.value
+			end
+		ensure
+			input.close
+		end
+		
+		expect(received_messages).to be == ["Echo: initial1", "Echo: initial2"]
+	end
+	
 	it "handles metadata" do
 		grpc_client = Async::GRPC::Client.new(client)
 		stub = grpc_client.stub(Async::GRPC::Fixtures::TestInterface, service_name)
@@ -277,6 +299,82 @@ AClient = Sus::Shared("a client") do
 end
 
 describe Async::GRPC::Client do
+	let(:endpoint) {Async::HTTP::Endpoint.parse("http://localhost:0")}
+	
+	with ".open" do
+		it "returns a client without a block" do
+			client = subject.open(endpoint)
+			
+			expect(client).to be_a(subject)
+			expect(client.delegate).to be_a(Async::HTTP::Client)
+		ensure
+			client&.close
+		end
+		
+		it "parses string endpoints and closes the client after yielding" do
+			closed = false
+			connected_endpoint = nil
+			delegate = Object.new
+			delegate.define_singleton_method(:close){closed = true}
+			
+			client_class = Class.new(subject)
+			client_class.define_singleton_method(:connect) do |endpoint|
+				connected_endpoint = endpoint
+				delegate
+			end
+			
+			result = client_class.open("http://localhost:0") do |client|
+				expect(client.delegate).to be == delegate
+				:result
+			end
+			
+			expect(result).to be == :result
+			expect(connected_endpoint).to be_a(Async::HTTP::Endpoint)
+			expect(closed).to be == true
+		end
+	end
+	
+	with ".with" do
+		it "inherits the delegate and merges headers" do
+			headers = Protocol::HTTP::Headers.new
+			headers["authorization"] = "Bearer token"
+			parent = subject.new(Protocol::HTTP::Middleware::Okay, headers: headers)
+			
+			client = subject.with(parent, headers: {"request-id" => "1234"})
+			
+			expect(client.delegate).to be == parent.delegate
+			expect(client.headers["authorization"]).to be == "Bearer token"
+			expect(client.headers["request-id"]).to be == ["1234"]
+		end
+	end
+	
+	with "string representations" do
+		it "describes the client and its headers" do
+			headers = Protocol::HTTP::Headers.new
+			client = subject.new(Protocol::HTTP::Middleware::Okay, headers: headers)
+			
+			expect(client.to_s).to be == "#<Async::GRPC::Client>"
+			expect(client.inspect).to be == "#<Async::GRPC::Client #{headers.inspect}>"
+		end
+	end
+	
+	with "an invalid streaming mode" do
+		it "rejects the RPC" do
+			interface_class = Class.new(Protocol::GRPC::Interface) do
+				rpc :InvalidCall,
+					request_class: Protocol::GRPC::Fixtures::TestMessage,
+					response_class: Protocol::GRPC::Fixtures::TestMessage,
+					streaming: :invalid
+			end
+			client = subject.new(Protocol::HTTP::Middleware::Okay)
+			interface = interface_class.new("test.InvalidService")
+			
+			expect do
+				client.invoke(interface, :InvalidCall)
+			end.to raise_exception(ArgumentError, message: be == "Unknown streaming type: invalid")
+		end
+	end
+	
 	include Sus::Fixtures::Async::HTTP::ServerContext
 	
 	with "http/1" do

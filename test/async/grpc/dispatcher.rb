@@ -95,6 +95,36 @@ describe Async::GRPC::Dispatcher do
 			expect(status).to be == Protocol::GRPC::Status::UNIMPLEMENTED
 		end
 		
+		it "returns UNIMPLEMENTED when the registered service name does not match" do
+			registered_name = "alias.Service"
+			dispatcher = subject.new(services: {registered_name => service})
+			path = Protocol::GRPC::Route.build(registered_name, "UnaryCall")
+			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+			
+			response = dispatcher.call(request)
+			
+			expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::UNIMPLEMENTED
+			expect(Protocol::GRPC::Metadata.extract_message(response.headers)).to be == "Service name mismatch: expected test.Service, got alias.Service"
+		end
+		
+		it "returns UNIMPLEMENTED when the service handler is missing" do
+			interface_class = Class.new(Protocol::GRPC::Interface) do
+				rpc :MissingCall,
+					request_class: Protocol::GRPC::Fixtures::TestMessage,
+					response_class: Protocol::GRPC::Fixtures::TestMessage
+			end
+			service_name = "test.IncompleteService"
+			service = Async::GRPC::Service.new(interface_class, service_name)
+			dispatcher = subject.new(services: {service_name => service})
+			path = Protocol::GRPC::Route.build(service_name, "MissingCall")
+			request = Protocol::HTTP::Request.new("http", "localhost", "POST", path, nil, headers, request_body)
+			
+			response = dispatcher.call(request)
+			
+			expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::UNIMPLEMENTED
+			expect(Protocol::GRPC::Metadata.extract_message(response.headers)).to be == "Handler method not implemented: missing_call"
+		end
+		
 		it "passes non-gRPC requests to next middleware" do
 			next_middleware = proc{Protocol::HTTP::Response[404, {}, ["Not Found"]]}
 			dispatcher = subject.new(next_middleware, services: { service_name => service })
