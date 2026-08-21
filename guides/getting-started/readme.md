@@ -143,19 +143,14 @@ end
 
 A cancelled request has a status of `Protocol::GRPC::Status::CANCELLED` and no `error`. Exceptions raised by the hook are logged and ignored.
 
-To map application-specific errors onto gRPC statuses, override {ruby Async::GRPC::Dispatcher#status_for}:
+Translate expected application errors at the service boundary by raising {ruby Protocol::GRPC::Error}:
 
 ``` ruby
-class ApplicationDispatcher < Async::GRPC::Dispatcher
-	protected
-	
-	def status_for(error)
-		case error
-		when ActiveRecord::RecordNotFound
-			return Protocol::GRPC::Status::NOT_FOUND, error.message
-		else
-			super
-		end
+class ApplicationService < Async::GRPC::Service
+	def find_record(input, output, call)
+		output.write(Record.find(input.read.id))
+	rescue ActiveRecord::RecordNotFound => error
+		raise Protocol::GRPC::Error.new(Protocol::GRPC::Status::NOT_FOUND, error.message)
 	end
 end
 ```

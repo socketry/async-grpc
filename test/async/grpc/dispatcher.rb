@@ -363,35 +363,17 @@ describe Async::GRPC::Dispatcher do
 			end
 		end
 		
-		with "#status_for" do
-			it "maps application errors onto the reported status" do
-				error_service_name = "test.CustomErrorService"
-				error_service = raising_service(error_service_name, KeyError.new("missing"))
-				
-				dispatcher = recording_dispatcher(error_service_name => error_service) do
-					def status_for(error)
-						return Protocol::GRPC::Status::NOT_FOUND, error.message if error.is_a?(KeyError)
-						
-						super
-					end
-				end
-				
-				response = dispatcher.call(build_request(error_service_name, "RaiseError"))
-				
-				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::NOT_FOUND
-				expect(dispatcher.completions.last[:status]).to be == Protocol::GRPC::Status::NOT_FOUND
-			end
-			
+		with "error status handling" do
 			it "falls back to INTERNAL when status mapping fails" do
 				error_service_name = "test.MappingErrorService"
-				error = KeyError.new("missing")
-				error_service = raising_service(error_service_name, error)
-				
-				dispatcher = recording_dispatcher(error_service_name => error_service) do
-					def status_for(error)
+				error_class = Class.new(Protocol::GRPC::Error) do
+					def status_code
 						raise "status mapping failed"
 					end
 				end
+				error = error_class.new(Protocol::GRPC::Status::NOT_FOUND, "missing")
+				error_service = raising_service(error_service_name, error)
+				dispatcher = recording_dispatcher(error_service_name => error_service)
 				
 				response = dispatcher.call(build_request(error_service_name, "RaiseError"))
 				

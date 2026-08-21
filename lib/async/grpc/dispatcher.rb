@@ -94,13 +94,11 @@ module Async
 				service.send(handler_method, input, output, call)
 			end
 			
-			# Map an error to the gRPC status and message reported to the client.
-			#
-			# Override this method to map application-specific errors onto gRPC statuses. The assigned status is available from {Protocol::GRPC::Call#status}. If the mapping fails, the error is logged and `INTERNAL` is assigned.
+			# Map an internal dispatcher error to the gRPC status and message reported to the client.
 			#
 			# @parameter error [Exception] The error which caused the call to fail.
 			# @returns [Tuple(Integer, String | Nil)] The gRPC status code and message.
-			def status_for(error)
+			private def status_for(error)
 				case error
 				when DeadlineExceededError
 					return Protocol::GRPC::Status::DEADLINE_EXCEEDED, "Deadline exceeded!"
@@ -133,7 +131,7 @@ module Async
 				rescue Async::Stop => cancellation
 					prepare_trailers(output, call)
 					
-					# Direct `assign_status` to bypass user provided `status_for`:
+					# Cancellation has a fixed status and does not require error mapping:
 					if headers = call.response&.headers
 						Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::CANCELLED)
 					end
