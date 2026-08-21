@@ -135,7 +135,7 @@ The hook runs once per request after the final gRPC status is assigned, includin
 class InstrumentedDispatcher < Async::GRPC::Dispatcher
 	protected
 	
-	def emit_completion(call, error: nil)
+	def emit_completion(call, error = nil)
 		Console.info(self, "Request completed!", path: call.request.path, status: call.status)
 	end
 end

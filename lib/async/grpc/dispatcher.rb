@@ -57,11 +57,11 @@ module Async
 			# @parameter error [Exception | Nil] The error which caused the call to fail, if any.
 			# @returns [void]
 			# @example Record the final gRPC status code
-			# 	def emit_completion(call, error: nil)
+			# 	def emit_completion(call, error = nil)
 			# 		service_name, method_name = Protocol::GRPC::Route.parse(call.request.path)
 			# 		metrics.increment("grpc.request", tags: {service: service_name, method: method_name, status: call.status})
 			# 	end
-			def emit_completion(call, error: nil)
+			def emit_completion(call, error = nil)
 				# Implementation-defined.
 			end
 			
@@ -194,7 +194,7 @@ module Async
 			
 			# Report completion without allowing instrumentation to affect the request.
 			def report_completion(call, error: nil)
-				emit_completion(call, error: error)
+				emit_completion(call, error)
 			rescue StandardError
 				# Ignore completion errors so instrumentation cannot affect the request itself.
 			end

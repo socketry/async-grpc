@@ -30,7 +30,7 @@ describe Async::GRPC::Dispatcher do
 			
 			protected
 			
-			def emit_completion(call, error: nil)
+			def emit_completion(call, error = nil)
 				completions << {call: call, status: call.status, error: error}
 			end
 		end
@@ -317,7 +317,7 @@ describe Async::GRPC::Dispatcher do
 			
 			it "ignores errors raised by the completion hook" do
 				dispatcher = recording_dispatcher(service_name => service) do
-					def emit_completion(call, error: nil)
+					def emit_completion(call, error = nil)
 						raise "completion failed"
 					end
 				end
