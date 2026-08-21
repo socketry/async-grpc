@@ -135,13 +135,13 @@ The hook runs once per request after the final gRPC status is assigned, includin
 class InstrumentedDispatcher < Async::GRPC::Dispatcher
 	protected
 	
-	def emit_completion(call, status:, error: nil)
-		Console.info(self, "Request completed!", path: call.request.path, status: status)
+	def emit_completion(call, error: nil)
+		Console.info(self, "Request completed!", path: call.request.path, status: call.status)
 	end
 end
 ```
 
-A cancelled request is reported with `Protocol::GRPC::Status::UNKNOWN` and no `error`. Exceptions raised by the hook are ignored.
+A cancelled request has a status of `Protocol::GRPC::Status::CANCELLED` and no `error`. Exceptions raised by the hook are ignored.
 
 To map application-specific errors onto gRPC statuses, override {ruby Async::GRPC::Dispatcher#status_for}:
 

@@ -48,22 +48,20 @@ module Async
 			# Called once after the final gRPC status has been assigned.
 			#
 			# Override this method to record request metrics or logs. The hook also runs for
-			# routing/setup failures and after streaming calls finish. If the call is cancelled
-			# before a status is assigned, `status` will be `Protocol::GRPC::Status::UNKNOWN`
-			# and `error` will be `nil`.
+			# routing/setup failures and after streaming calls finish. A cancelled call has
+			# a status of `Protocol::GRPC::Status::CANCELLED` and no error.
 			#
 			# Exceptions raised by this hook are ignored.
 			#
 			# @parameter call [Protocol::GRPC::Call] The call context, including the request and the response.
-			# @parameter status [Integer] The final gRPC status code.
 			# @parameter error [Exception | Nil] The error which caused the call to fail, if any.
 			# @returns [void]
 			# @example Record the final gRPC status code
-			# 	def emit_completion(call, status:, error: nil)
+			# 	def emit_completion(call, error: nil)
 			# 		service_name, method_name = Protocol::GRPC::Route.parse(call.request.path)
-			# 		metrics.increment("grpc.request", tags: {service: service_name, method: method_name, status: status})
+			# 		metrics.increment("grpc.request", tags: {service: service_name, method: method_name, status: call.status})
 			# 	end
-			def emit_completion(call, status:, error: nil)
+			def emit_completion(call, error: nil)
 				# Implementation-defined.
 			end
 			
@@ -109,7 +107,7 @@ module Async
 			
 			# Map an error to the gRPC status and message reported to the client.
 			#
-			# Override this method to map application-specific errors onto gRPC statuses. The returned status is also reported to {emit_completion}.
+			# Override this method to map application-specific errors onto gRPC statuses. The assigned status is available from {Protocol::GRPC::Call#status}.
 			#
 			# @parameter error [Exception] The error which caused the call to fail.
 			# @returns [Tuple(Integer, String | Nil)] The gRPC status code and message.
@@ -139,7 +137,7 @@ module Async
 					else
 						invoke_service(service, handler_method, input, output, call)
 					end
-				rescue StandardError => error
+				rescue => error
 					begin
 						# An override can fail before closing streams:
 						close_streams(input, output, call)
@@ -148,6 +146,14 @@ module Async
 					end
 					
 					assign_error_status(call, error)
+				rescue Async::Stop
+					begin
+						Protocol::GRPC::Metadata.assign_status!(call.response.headers, status: Protocol::GRPC::Status::CANCELLED)
+					rescue StandardError
+						# Preserve the cancellation if status assignment fails.
+					end
+					
+					raise
 				ensure
 					# Cancellation raises `Async::Stop`, not `StandardError`:
 					report_completion(call, error: error)
@@ -183,14 +189,12 @@ module Async
 			def assign_error_status(call, error)
 				assign_status(call, error)
 			rescue StandardError
-				# If status assignment fails, {report_completion} will fall back to UNKNOWN.
+				# Preserve the original error if status assignment fails.
 			end
 			
-			# Report completion using the status assigned to the response.
+			# Report completion without allowing instrumentation to affect the request.
 			def report_completion(call, error: nil)
-				status = Protocol::GRPC::Metadata.extract_status(call.response.headers)
-				
-				emit_completion(call, status: status, error: error)
+				emit_completion(call, error: error)
 			rescue StandardError
 				# Ignore completion errors so instrumentation cannot affect the request itself.
 			end

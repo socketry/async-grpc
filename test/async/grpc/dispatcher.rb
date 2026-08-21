@@ -30,8 +30,8 @@ describe Async::GRPC::Dispatcher do
 			
 			protected
 			
-			def emit_completion(call, status:, error: nil)
-				completions << {call: call, status: status, error: error, response_status: Protocol::GRPC::Metadata.extract_status(call.response.headers)}
+			def emit_completion(call, error: nil)
+				completions << {call: call, status: call.status, error: error}
 			end
 		end
 		
@@ -206,8 +206,6 @@ describe Async::GRPC::Dispatcher do
 				expect(completion[:call].response).to be == response
 				expect(completion[:status]).to be == Protocol::GRPC::Status::OK
 				expect(completion[:error]).to be_nil
-				# The status is assigned to the response before the completion is emitted:
-				expect(completion[:response_status]).to be == Protocol::GRPC::Status::OK
 			end
 			
 			it "emits completion after streaming requests finish" do
@@ -235,8 +233,8 @@ describe Async::GRPC::Dispatcher do
 				expect(dispatcher.completions.size).to be == 1
 				
 				completion = dispatcher.completions.last
-				# Cancellation does not assign an error status:
-				expect(completion[:status]).to be == Protocol::GRPC::Status::UNKNOWN
+				# Cancellation is reported without an error:
+				expect(completion[:status]).to be == Protocol::GRPC::Status::CANCELLED
 				expect(completion[:error]).to be_nil
 			end
 			
@@ -319,7 +317,7 @@ describe Async::GRPC::Dispatcher do
 			
 			it "ignores errors raised by the completion hook" do
 				dispatcher = recording_dispatcher(service_name => service) do
-					def emit_completion(call, status:, error: nil)
+					def emit_completion(call, error: nil)
 						raise "completion failed"
 					end
 				end
