@@ -1,5 +1,9 @@
 # Releases
 
+## Unreleased
+
+  - Added `Async::GRPC::Dispatcher#emit_completion` for once-per-request completion instrumentation, including routing failures, cancellations, and the final gRPC status.
+
 ## v0.8.0
 
   - Added `Async::GRPC::Error` as the base class for async gRPC errors, including `RemoteError` and the new `DeadlineExceededError` used to distinguish call deadline expiry from unrelated `Async::TimeoutError` failures.

@@ -126,6 +126,49 @@ Async do
 end
 ```
 
+### Instrumentation
+
+Subclass the dispatcher and override {ruby Async::GRPC::Dispatcher#emit_completion} to record completion metrics or logs.
+The hook runs once per request after the final gRPC status is assigned, including routing failures and completed streaming calls:
+
+``` ruby
+class InstrumentedDispatcher < Async::GRPC::Dispatcher
+	protected
+	
+	def emit_completion(call, error = nil)
+		Console.info(self, "Request completed!", path: call.request.path, status: call.status)
+	end
+end
+```
+
+A cancelled request has a status of `Protocol::GRPC::Status::CANCELLED` and no `error`. Exceptions raised by the hook are logged and ignored.
+
+Translate expected application errors at the service boundary by raising {ruby Protocol::GRPC::Error}:
+
+``` ruby
+class ApplicationService < Async::GRPC::Service
+	def find_record(input, output, call)
+		output.write(Record.find(input.read.id))
+	rescue ActiveRecord::RecordNotFound => error
+		raise Protocol::GRPC::Error.new(Protocol::GRPC::Status::NOT_FOUND, error.message)
+	end
+end
+```
+
+Override {ruby Async::GRPC::Dispatcher#invoke_service} when you need middleware around service execution:
+
+``` ruby
+class ApplicationDispatcher < Async::GRPC::Dispatcher
+	protected
+	
+	def invoke_service(service, handler_method, input, output, call)
+		RequestContext.for(call.request) do
+			super
+		end
+	end
+end
+```
+
 ## Complete Example
 
 ``` ruby
