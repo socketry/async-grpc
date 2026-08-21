@@ -242,6 +242,22 @@ describe Async::GRPC::Dispatcher do
 				expect(dispatcher.completions.last[:error]).to be == error
 			end
 			
+			it "reports a cleanup-only failure as INTERNAL" do
+				dispatcher = recording_dispatcher(service_name => service) do
+					def close_streams(input, output, call)
+						super
+						raise "stream cleanup failed"
+					end
+				end
+				
+				response = dispatcher.call(request)
+				
+				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::INTERNAL
+				expect(dispatcher.completions.size).to be == 1
+				expect(dispatcher.completions.last[:status]).to be == Protocol::GRPC::Status::INTERNAL
+				expect(dispatcher.completions.last[:error].message).to be == "stream cleanup failed"
+			end
+			
 			it "emits completion after streaming requests finish" do
 				dispatcher = recording_dispatcher(service_name => service)
 				

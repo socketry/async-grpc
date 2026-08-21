@@ -173,9 +173,13 @@ module Async
 			private def finalize_streams(input, output, call, error, cancellation)
 				close_streams(input, output, call)
 			rescue => close_error
-				raise unless error || cancellation
-				
-				Console.warn(self, "Error during stream cleanup!", exception: close_error)
+				if error || cancellation
+					Console.warn(self, "Error during stream cleanup!", exception: close_error)
+				else
+					error = close_error
+					assign_status(call, error)
+					raise
+				end
 			ensure
 				# Cancellation raises `Async::Stop`, not `StandardError`:
 				report_completion(call, error)
