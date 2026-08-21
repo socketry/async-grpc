@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
 	spec.version = Async::GRPC::VERSION
 	
 	spec.summary = "Client and server implementation for gRPC using Async."
-	spec.authors = ["Samuel Williams"]
+	spec.authors = ["Samuel Williams", "Alex Watt"]
 	spec.license = "MIT"
 	
 	spec.cert_chain  = ["release.cert"]
@@ -16,6 +16,8 @@ Gem::Specification.new do |spec|
 	spec.homepage = "https://github.com/socketry/async-grpc"
 	
 	spec.metadata = {
+		"bug_tracker_uri" => "https://github.com/socketry/async-grpc/issues",
+		"changelog_uri" => "https://github.com/socketry/async-grpc/blob/main/releases.md",
 		"documentation_uri" => "https://socketry.github.io/async-grpc/",
 		"source_code_uri" => "https://github.com/socketry/async-grpc.git",
 	}

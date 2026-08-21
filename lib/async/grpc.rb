@@ -2,6 +2,7 @@
 
 # Released under the MIT License.
 # Copyright, 2025, by Samuel Williams.
+# Copyright, 2026, by Alex Watt.
 
 require_relative "grpc/version"
 require_relative "grpc/error"

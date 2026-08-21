@@ -30,5 +30,4 @@ group :test do
 	gem "sus-fixtures-async-http"
 	
 	gem "bake-test"
-	gem "bake-test-external"
 end

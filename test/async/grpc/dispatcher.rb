@@ -2,6 +2,7 @@
 
 # Released under the MIT License.
 # Copyright, 2025-2026, by Samuel Williams.
+# Copyright, 2026, by Alex Watt.
 
 require "sus/fixtures/async/scheduler_context"
 
