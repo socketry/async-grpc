@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.9.0
 
   - Added `Async::GRPC::Dispatcher#emit_completion` for once-per-request completion instrumentation, including routing failures, cancellations, and the final gRPC status.
 
