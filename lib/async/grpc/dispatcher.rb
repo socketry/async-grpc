@@ -176,21 +176,19 @@ module Async
 				end
 			end
 			
-			# Assign the status for the given error to the response without replacing the original error.
+			# Assign the status for the given error to the response.
 			def assign_status(call, error)
-				return unless headers = call.response&.headers
-				
-				status, message = status_for(error)
-				
-				Protocol::GRPC::Metadata.assign_status!(headers, status: status, message: message, error: error)
-			rescue => assignment_error
-				Console.warn(self, "Error during status assignment!", exception: assignment_error)
-				return unless headers
-				
-				begin
-					Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::INTERNAL)
-				rescue => fallback_error
-					Console.warn(self, "Error during fallback status assignment!", exception: fallback_error)
+				if headers = call.response&.headers
+					begin
+						status, message = status_for(error)
+					rescue => internal_error
+						Console.warn(self, "Error during status mapping!", exception: internal_error)
+						
+						status = Protocol::GRPC::Status::INTERNAL
+						message = nil
+					end
+					
+					Protocol::GRPC::Metadata.assign_status!(headers, status: status, message: message, error: error)
 				end
 			end
 			
