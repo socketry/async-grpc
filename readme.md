@@ -24,6 +24,11 @@ Please see the [project documentation](https://socketry.github.io/async-grpc/) f
 
 Please see the [project releases](https://socketry.github.io/async-grpc/releases/index) for all releases.
 
+### Unreleased
+
+  - Added `Async::GRPC::Dispatcher#emit_completion` for once-per-request completion instrumentation, including routing failures, cancellations, and the final gRPC status.
+  - Added `Async::GRPC::Dispatcher#status_for` to map application errors onto gRPC statuses.
+
 ### v0.8.0
 
   - Added `Async::GRPC::Error` as the base class for async gRPC errors, including `RemoteError` and the new `DeadlineExceededError` used to distinguish call deadline expiry from unrelated `Async::TimeoutError` failures.
