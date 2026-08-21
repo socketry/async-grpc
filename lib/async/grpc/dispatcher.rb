@@ -156,7 +156,7 @@ module Async
 					raise
 				ensure
 					# Cancellation raises `Async::Stop`, not `StandardError`:
-					report_completion(call, error: error)
+					report_completion(call, error)
 				end
 			end
 			
@@ -193,10 +193,10 @@ module Async
 			end
 			
 			# Report completion without allowing instrumentation to affect the request.
-			def report_completion(call, error: nil)
+			private def report_completion(call, error = nil)
 				emit_completion(call, error)
-			rescue StandardError
-				# Ignore completion errors so instrumentation cannot affect the request itself.
+			rescue => error
+				Console.warn(self, "Error during emit completion!", exception: error)
 			end
 			
 			# Dispatch the request to the appropriate service.
@@ -264,7 +264,7 @@ module Async
 					call ||= Protocol::GRPC::Call.new(request, response)
 					
 					assign_error_status(call, error)
-					report_completion(call, error: error)
+					report_completion(call, error)
 				end
 				
 				return response

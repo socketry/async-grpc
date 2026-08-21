@@ -141,7 +141,7 @@ class InstrumentedDispatcher < Async::GRPC::Dispatcher
 end
 ```
 
-A cancelled request has a status of `Protocol::GRPC::Status::CANCELLED` and no `error`. Exceptions raised by the hook are ignored.
+A cancelled request has a status of `Protocol::GRPC::Status::CANCELLED` and no `error`. Exceptions raised by the hook are logged and ignored.
 
 To map application-specific errors onto gRPC statuses, override {ruby Async::GRPC::Dispatcher#status_for}:
 
