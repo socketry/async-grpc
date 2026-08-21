@@ -208,6 +208,40 @@ describe Async::GRPC::Dispatcher do
 				expect(completion[:error]).to be_nil
 			end
 			
+			it "assigns the final status before closing streams" do
+				dispatcher = recording_dispatcher(service_name => service) do
+					def close_streams(input, output, call)
+						@status_before_close = call.status
+						super
+					end
+				end
+				
+				response = dispatcher.call(request)
+				consume_response(response)
+				
+				expect(dispatcher.instance_variable_get(:@status_before_close)).to be == Protocol::GRPC::Status::OK
+			end
+			
+			it "emits completion once when stream cleanup fails" do
+				error_service_name = "test.CleanupErrorService"
+				error = RuntimeError.new("service failed")
+				error_service = raising_service(error_service_name, error)
+				
+				dispatcher = recording_dispatcher(error_service_name => error_service) do
+					def close_streams(input, output, call)
+						super
+						raise "stream cleanup failed"
+					end
+				end
+				
+				response = dispatcher.call(build_request(error_service_name, "RaiseError"))
+				consume_response(response)
+				
+				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::INTERNAL
+				expect(dispatcher.completions.size).to be == 1
+				expect(dispatcher.completions.last[:error]).to be == error
+			end
+			
 			it "emits completion after streaming requests finish" do
 				dispatcher = recording_dispatcher(service_name => service)
 				

@@ -68,8 +68,9 @@ module Async
 			# Invoke a service handler.
 			#
 			# Override this method to establish request context or wrap handlers with
-			# application middleware. Overrides should call `super` to preserve stream cleanup,
-			# trailer handling, and successful status assignment.
+			# application middleware. Overrides should call `super` to invoke the handler.
+			# Stream cleanup, trailer handling, and status assignment are performed by the
+			# dispatcher after this method returns or raises.
 			#
 			# This hook only surrounds service execution. Use {emit_completion} to observe
 			# every request, including routing/setup failures. A deadline expiring during
@@ -90,19 +91,7 @@ module Async
 			# 		end
 			# 	end
 			def invoke_service(service, handler_method, input, output, call)
-				begin
-					service.send(handler_method, input, output, call)
-				ensure
-					close_streams(input, output, call)
-				end
-				
-				# Add status (if not already set by handler):
-				if headers = call.response&.headers
-					# Only add OK status if grpc-status hasn't been set by the handler:
-					unless headers.key?("grpc-status")
-						Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::OK)
-					end
-				end
+				service.send(handler_method, input, output, call)
 			end
 			
 			# Map an error to the gRPC status and message reported to the client.
@@ -128,6 +117,7 @@ module Async
 			# @parameter parent [Async::Task] The task used to enforce the call deadline.
 			def dispatch_to_service(service, handler_method, input, output, call, parent: Async::Task.current)
 				error = nil
+				cancellation = nil
 				
 				begin
 					if deadline = call.deadline
@@ -138,29 +128,39 @@ module Async
 						invoke_service(service, handler_method, input, output, call)
 					end
 				rescue => error
-					begin
-						# An override can fail before closing streams:
-						close_streams(input, output, call)
-					rescue StandardError
-						# Preserve the original error if cleanup fails.
-					end
-					
+					prepare_trailers(output, call)
 					assign_status(call, error)
-				rescue Async::Stop
-					begin
-						Protocol::GRPC::Metadata.assign_status!(call.response.headers, status: Protocol::GRPC::Status::CANCELLED)
-					rescue StandardError
-						# Preserve the cancellation if status assignment fails.
+				rescue Async::Stop => cancellation
+					prepare_trailers(output, call)
+					
+					# Direct `assign_status` to bypass user provided `status_for`:
+					if headers = call.response&.headers
+						Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::CANCELLED)
 					end
 					
 					raise
+				else
+					prepare_trailers(output, call)
+					
+					# Add status (if not already set by handler):
+					if headers = call.response&.headers
+						unless headers.key?("grpc-status")
+							Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::OK)
+						end
+					end
 				ensure
-					# Cancellation raises `Async::Stop`, not `StandardError`:
-					report_completion(call, error)
+					finalize_streams(input, output, call, error, cancellation)
 				end
 			end
 			
-			# Close streams and mark response headers as trailers when data was written.
+			# Mark response headers as trailers when data was written.
+			def prepare_trailers(output, call)
+				if output.count > 0
+					call.response.headers.trailer!
+				end
+			end
+			
+			# Close the input and output streams.
 			def close_streams(input, output, call)
 				# Close input stream:
 				input.close
@@ -169,11 +169,18 @@ module Async
 				unless output.closed?
 					output.close_write
 				end
+			end
+			
+			# Close streams and report completion while preserving an active service error or cancellation.
+			private def finalize_streams(input, output, call, error, cancellation)
+				close_streams(input, output, call)
+			rescue => close_error
+				raise unless error || cancellation
 				
-				# gRPC supports trailers-only responses, but only if there are no data frames. If at this point, there are data frames (which may or may not have been sent yet), we need to mark trailers:
-				if output.count > 0
-					call.response.headers.trailer!
-				end
+				Console.warn(self, "Error during stream cleanup!", exception: close_error)
+			ensure
+				# Cancellation raises `Async::Stop`, not `StandardError`:
+				report_completion(call, error)
 			end
 			
 			# Assign the status for the given error to the response.
@@ -250,21 +257,23 @@ module Async
 					input = Protocol::GRPC::Body::ReadableBody.new(request.body, message_class: request_class, encoding: encoding)
 					output = Protocol::GRPC::Body::WritableBody.new(message_class: response_class, encoding: encoding)
 					response.body = output
-					
-					if rpc_descriptor.streaming?
-						Async do |task|
-							dispatch_to_service(service, handler_method, input, output, call, parent: task)
-						end
-					else
-						# Unary call:
-						dispatch_to_service(service, handler_method, input, output, call)
-					end
-				rescue StandardError => error
+				rescue => error
 					# Routing/setup failures. {Protocol::GRPC::Call.for} can fail before the call context exists:
 					call ||= Protocol::GRPC::Call.new(request, response)
 					
 					assign_status(call, error)
 					report_completion(call, error)
+					
+					return response
+				end
+				
+				if rpc_descriptor.streaming?
+					Async do |task|
+						dispatch_to_service(service, handler_method, input, output, call, parent: task)
+					end
+				else
+					# Unary call:
+					dispatch_to_service(service, handler_method, input, output, call)
 				end
 				
 				return response
