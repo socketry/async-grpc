@@ -156,10 +156,18 @@ module Async
 			
 			# Close streams and mark response headers as trailers when data was written.
 			def close_streams(input, output, call)
+				# Close input stream:
 				input.close
-				output.close_write unless output.closed?
+			ensure
+				# Close output stream:
+				unless output.closed?
+					output.close_write
+				end
 				
-				call.response.headers.trailer! if output.count > 0
+				# gRPC supports trailers-only responses, but only if there are no data frames. If at this point, there are data frames (which may or may not have been sent yet), we need to mark trailers:
+				if output.count > 0
+					call.response.headers.trailer!
+				end
 			end
 			
 			# Assign the status for the given error to the response.
