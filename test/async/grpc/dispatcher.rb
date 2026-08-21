@@ -347,6 +347,24 @@ describe Async::GRPC::Dispatcher do
 				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::NOT_FOUND
 				expect(dispatcher.completions.last[:status]).to be == Protocol::GRPC::Status::NOT_FOUND
 			end
+			
+			it "falls back to INTERNAL when status mapping fails" do
+				error_service_name = "test.MappingErrorService"
+				error = KeyError.new("missing")
+				error_service = raising_service(error_service_name, error)
+				
+				dispatcher = recording_dispatcher(error_service_name => error_service) do
+					def status_for(error)
+						raise "status mapping failed"
+					end
+				end
+				
+				response = dispatcher.call(build_request(error_service_name, "RaiseError"))
+				
+				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::INTERNAL
+				expect(dispatcher.completions.last[:status]).to be == Protocol::GRPC::Status::INTERNAL
+				expect(dispatcher.completions.last[:error]).to be == error
+			end
 		end
 		
 		with "trailer behaviour when response has data frames" do

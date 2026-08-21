@@ -107,7 +107,7 @@ module Async
 			
 			# Map an error to the gRPC status and message reported to the client.
 			#
-			# Override this method to map application-specific errors onto gRPC statuses. The assigned status is available from {Protocol::GRPC::Call#status}.
+			# Override this method to map application-specific errors onto gRPC statuses. The assigned status is available from {Protocol::GRPC::Call#status}. If the mapping fails, the error is logged and `INTERNAL` is assigned.
 			#
 			# @parameter error [Exception] The error which caused the call to fail.
 			# @returns [Tuple(Integer, String | Nil)] The gRPC status code and message.
@@ -185,6 +185,13 @@ module Async
 				Protocol::GRPC::Metadata.assign_status!(headers, status: status, message: message, error: error)
 			rescue => assignment_error
 				Console.warn(self, "Error during status assignment!", exception: assignment_error)
+				return unless headers
+				
+				begin
+					Protocol::GRPC::Metadata.assign_status!(headers, status: Protocol::GRPC::Status::INTERNAL)
+				rescue => fallback_error
+					Console.warn(self, "Error during fallback status assignment!", exception: fallback_error)
+				end
 			end
 			
 			# Report completion without allowing instrumentation to affect the request.
