@@ -145,7 +145,7 @@ module Async
 						# Preserve the original error if cleanup fails.
 					end
 					
-					assign_error_status(call, error)
+					assign_status(call, error)
 				rescue Async::Stop
 					begin
 						Protocol::GRPC::Metadata.assign_status!(call.response.headers, status: Protocol::GRPC::Status::CANCELLED)
@@ -176,20 +176,15 @@ module Async
 				end
 			end
 			
-			# Assign the status for the given error to the response.
+			# Assign the status for the given error to the response without replacing the original error.
 			def assign_status(call, error)
 				return unless headers = call.response&.headers
 				
 				status, message = status_for(error)
 				
 				Protocol::GRPC::Metadata.assign_status!(headers, status: status, message: message, error: error)
-			end
-			
-			# Best-effort status assignment for failures.
-			def assign_error_status(call, error)
-				assign_status(call, error)
-			rescue StandardError
-				# Preserve the original error if status assignment fails.
+			rescue => assignment_error
+				Console.warn(self, "Error during status assignment!", exception: assignment_error)
 			end
 			
 			# Report completion without allowing instrumentation to affect the request.
@@ -263,7 +258,7 @@ module Async
 					# Routing/setup failures. {Protocol::GRPC::Call.for} can fail before the call context exists:
 					call ||= Protocol::GRPC::Call.new(request, response)
 					
-					assign_error_status(call, error)
+					assign_status(call, error)
 					report_completion(call, error)
 				end
 				
