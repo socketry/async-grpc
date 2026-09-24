@@ -17,6 +17,7 @@ require "protocol/grpc/metadata"
 require "protocol/grpc/error"
 require_relative "stub"
 require_relative "error"
+require_relative "transport"
 
 module Async
 	module GRPC
@@ -101,9 +102,22 @@ module Async
 			def call(request)
 				request.headers = @headers.merge(request.headers)
 				
-				super.tap do |response|
-					response.headers.policy = Protocol::GRPC::HEADER_POLICY
+				response = begin
+					super
+				rescue *Transport::ERRORS => error
+					raise Protocol::GRPC::Unavailable.new(error.message), cause: error
 				end
+				
+				begin
+					response.headers.policy = Protocol::GRPC::HEADER_POLICY
+					response.body = Transport::Body.new(response.body) if response.body
+					validate_response!(response)
+				rescue Exception => error
+					response.close(error)
+					raise
+				end
+				
+				return response
 			end
 			
 			# Make a gRPC call.
@@ -126,7 +140,7 @@ module Async
 				headers = Protocol::GRPC::Metadata.build(
 					metadata: metadata,
 					timeout: timeout,
-					content_type: "application/grpc+proto"
+					content_type: "application/grpc"
 				)
 				headers["grpc-encoding"] = encoding if encoding
 				
@@ -149,6 +163,25 @@ module Async
 			end
 			
 		protected
+			
+			# Reject non-gRPC responses before passing their bytes to a frame decoder.
+			# @parameter response [Protocol::HTTP::Response] The HTTP response.
+			# @raises [Protocol::GRPC::Error] If the response is not a valid gRPC envelope.
+			def validate_response!(response)
+				content_type = response.headers["content-type"].to_s
+				return if response.status == 200 && content_type.match?(/\Aapplication\/grpc(?:\+[\w.-]+)?(?:\s*;|\z)/i)
+				
+				# Discard raw bytes so trailers remain available without decoding HTML as frames:
+				response.body&.each{|chunk|}
+				if response.headers["grpc-status"]
+					check_status!(response)
+					status = Protocol::GRPC::Status::INTERNAL
+				else
+					status = Protocol::GRPC::Status.for_http_status(response.status)
+				end
+				
+				raise Protocol::GRPC::Error.for(status, "Invalid gRPC response: HTTP #{response.status}, content-type #{content_type.inspect}")
+			end
 			
 			# Make a unary gRPC call.
 			# @parameter path [String] The gRPC path

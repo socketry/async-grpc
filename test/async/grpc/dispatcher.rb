@@ -342,6 +342,7 @@ describe Async::GRPC::Dispatcher do
 				dispatcher = recording_dispatcher(error_service_name => error_service)
 				
 				response = dispatcher.call(build_request(error_service_name, "RaiseError"))
+				expect(response.headers["backtrace"]).to be_nil
 				
 				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::RESOURCE_EXHAUSTED
 				
@@ -356,6 +357,7 @@ describe Async::GRPC::Dispatcher do
 				dispatcher = recording_dispatcher(error_service_name => error_service)
 				
 				response = dispatcher.call(build_request(error_service_name, "RaiseError"))
+				expect(response.headers["backtrace"]).to be_nil
 				
 				expect(Protocol::GRPC::Metadata.extract_status(response.headers)).to be == Protocol::GRPC::Status::INTERNAL
 				
