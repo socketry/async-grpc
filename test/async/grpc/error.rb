@@ -2,6 +2,7 @@
 
 # Released under the MIT License.
 # Copyright, 2026, by Alex Watt.
+# Copyright, 2026, by Samuel Williams.
 
 require "async/grpc/error"
 
