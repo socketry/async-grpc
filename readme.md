@@ -24,6 +24,11 @@ Please see the [project documentation](https://socketry.github.io/async-grpc/) f
 
 Please see the [project releases](https://socketry.github.io/async-grpc/releases/index) for all releases.
 
+### v0.10.0
+
+  - Send `application/grpc` request headers for compatibility with Google API frontends.
+  - Reject invalid HTTP responses before decoding gRPC frames with `Async::GRPC::ResponseError`, describing the invalid status and content type in the message and buffering the response for inspecting status, headers, and body.
+
 ### v0.9.0
 
   - Added `Async::GRPC::Dispatcher#emit_completion` for once-per-request completion instrumentation, including routing failures, cancellations, and the final gRPC status.

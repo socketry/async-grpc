@@ -7,7 +7,7 @@
 module Async
 	# @namespace
 	module GRPC
-		VERSION = "0.9.1"
+		VERSION = "0.10.0"
 	end
 end
 
