@@ -98,11 +98,13 @@ module Async
 			# Call the underlying HTTP client with merged headers.
 			# @parameter request [Protocol::HTTP::Request] The HTTP request
 			# @returns [Protocol::HTTP::Response] The HTTP response
+			# @raises [ResponseError] If the HTTP response does not conform to gRPC.
 			def call(request)
 				request.headers = @headers.merge(request.headers)
 				
 				super.tap do |response|
 					response.headers.policy = Protocol::GRPC::HEADER_POLICY
+					validate_response!(response)
 				end
 			end
 			
@@ -117,16 +119,17 @@ module Async
 			# @yields {|input, output| ...} Block for streaming calls
 			# @returns [Object | Protocol::GRPC::Body::ReadableBody] Response message or readable body for streaming
 			# @raises [ArgumentError] If method is unknown or streaming type is invalid
+			# @raises [ResponseError] If the HTTP response does not conform to gRPC.
 			# @raises [Protocol::GRPC::Error] If the gRPC call fails
 			def invoke(service, method, request = nil, metadata: {}, timeout: nil, encoding: nil, initial: nil, &block)
 				rpc = service.class.lookup_rpc(method)
-				raise ArgumentError, "Unknown method: #{method}" unless rpc
+				raise ArgumentError, "Unknown method: #{method}!" unless rpc
 				
 				path = service.path(method)
 				headers = Protocol::GRPC::Metadata.build(
 					metadata: metadata,
 					timeout: timeout,
-					content_type: "application/grpc+proto"
+					content_type: "application/grpc"
 				)
 				headers["grpc-encoding"] = encoding if encoding
 				
@@ -144,11 +147,21 @@ module Async
 				when :bidirectional
 					bidirectional_call(path, headers, request_class, response_class, encoding, initial: initial, &block)
 				else
-					raise ArgumentError, "Unknown streaming type: #{streaming}"
+					raise ArgumentError, "Unknown streaming type: #{streaming}!"
 				end
 			end
 			
 		protected
+			
+			# Reject non-gRPC responses before passing their bytes to a frame decoder.
+			# @parameter response [Protocol::HTTP::Response] The HTTP response.
+			# @raises [ResponseError] If the response is not a valid gRPC envelope.
+			def validate_response!(response)
+				content_type = response.headers["content-type"].to_s
+				return if response.status == 200 && content_type.match?(/\Aapplication\/grpc(?:\+[\w.-]+)?(?:\s*;|\z)/i)
+				
+				raise ResponseError.for(response)
+			end
 			
 			# Make a unary gRPC call.
 			# @parameter path [String] The gRPC path
