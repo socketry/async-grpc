@@ -134,7 +134,7 @@ module Async
 			# @raises [Protocol::GRPC::Error] If the gRPC call fails
 			def invoke(service, method, request = nil, metadata: {}, timeout: nil, encoding: nil, initial: nil, &block)
 				rpc = service.class.lookup_rpc(method)
-				raise ArgumentError, "Unknown method: #{method}" unless rpc
+				raise ArgumentError, "Unknown method: #{method}!" unless rpc
 				
 				path = service.path(method)
 				headers = Protocol::GRPC::Metadata.build(
@@ -158,7 +158,7 @@ module Async
 				when :bidirectional
 					bidirectional_call(path, headers, request_class, response_class, encoding, initial: initial, &block)
 				else
-					raise ArgumentError, "Unknown streaming type: #{streaming}"
+					raise ArgumentError, "Unknown streaming type: #{streaming}!"
 				end
 			end
 			
@@ -180,7 +180,7 @@ module Async
 					status = Protocol::GRPC::Status.for_http_status(response.status)
 				end
 				
-				raise Protocol::GRPC::Error.for(status, "Invalid gRPC response: HTTP #{response.status}, content-type #{content_type.inspect}")
+				raise Protocol::GRPC::Error.for(status, "Invalid gRPC response: HTTP #{response.status}, content-type #{content_type.inspect}!")
 			end
 			
 			# Make a unary gRPC call.
