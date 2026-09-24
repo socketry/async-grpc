@@ -161,8 +161,8 @@ module Async
 				content_type = response.headers["content-type"].to_s
 				return if response.status == 200 && content_type.match?(/\Aapplication\/grpc(?:\+[\w.-]+)?(?:\s*;|\z)/i)
 				
-				# Discard raw bytes so trailers remain available without decoding HTML as frames:
-				response.body&.each{|chunk|}
+				# Consume the body without decoding frames so gRPC status trailers are available:
+				response.body&.discard
 				if response.headers["grpc-status"]
 					check_status!(response)
 					status = Protocol::GRPC::Status::INTERNAL

@@ -4,6 +4,7 @@
 # Copyright, 2026, by Samuel Williams.
 
 require "async/grpc/client"
+require "protocol/http/body/writable"
 
 describe Async::GRPC::Client do
 	let(:request) {Protocol::HTTP::Request["POST", "/example.Service/Call", {}, nil]}
@@ -33,17 +34,20 @@ describe Async::GRPC::Client do
 		end
 		
 		it "closes the response when reading an invalid response body fails" do
-			body = Protocol::HTTP::Body::Buffered.new(["HTML"])
+			body = Protocol::HTTP::Body::Writable.new
 			body.define_singleton_method(:read){raise RuntimeError, "Read failed!"}
 			response = Protocol::HTTP::Response[503, {"content-type" => "text/html"}, body]
 			
 			expect{client_for(response).call(request)}.to raise_exception(RuntimeError, message: be == "Read failed!")
 			expect(response.body).to be_nil
+			expect(body).to be(:closed?)
 		end
 		
 		it "reads trailers without decoding a non-gRPC body" do
 			headers = Protocol::HTTP::Headers.new
-			body = Protocol::HTTP::Body::Buffered.new(["HTML"])
+			body = Protocol::HTTP::Body::Writable.new
+			body.write("HTML")
+			body.close_write
 			body.define_singleton_method(:read) do
 				chunk = super()
 				headers["grpc-status"] = "16" unless chunk
