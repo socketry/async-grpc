@@ -160,7 +160,7 @@ module Async
 				content_type = response.headers["content-type"].to_s
 				return if response.status == 200 && content_type.match?(/\Aapplication\/grpc(?:\+[\w.-]+)?(?:\s*;|\z)/i)
 				
-				raise ResponseError, response.buffered!
+				raise ResponseError.for(response)
 			end
 			
 			# Make a unary gRPC call.
