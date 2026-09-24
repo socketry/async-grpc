@@ -7,9 +7,6 @@ source "https://rubygems.org"
 
 gemspec
 
-# Use the protocol fixes while their release is pending:
-gem "protocol-grpc", git: "https://github.com/socketry/protocol-grpc.git", ref: "4a35b7cdb9d88e64794d2cf05ba72d9de1140aa9"
-
 group :maintenance, optional: true do
 	gem "bake-gem"
 	gem "bake-modernize"
