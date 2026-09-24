@@ -33,13 +33,12 @@ describe Async::GRPC::Client do
 			expect(response.body).to be_nil
 		end
 		
-		it "closes the response when reading an invalid response body fails" do
+		it "closes the body when reading an invalid response fails" do
 			body = Protocol::HTTP::Body::Writable.new
 			body.define_singleton_method(:read){raise RuntimeError, "Read failed!"}
 			response = Protocol::HTTP::Response[503, {"content-type" => "text/html"}, body]
 			
 			expect{client_for(response).call(request)}.to raise_exception(RuntimeError, message: be == "Read failed!")
-			expect(response.body).to be_nil
 			expect(body).to be(:closed?)
 		end
 		

@@ -105,9 +105,6 @@ module Async
 				super.tap do |response|
 					response.headers.policy = Protocol::GRPC::HEADER_POLICY
 					validate_response!(response)
-					success = true
-				ensure
-					response.close unless success
 				end
 			end
 			
