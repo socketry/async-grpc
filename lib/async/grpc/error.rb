@@ -20,7 +20,7 @@ module Async
 			# Initialize an error by reading the raw response body.
 			# @parameter response [Protocol::HTTP::Response] The invalid response.
 			def initialize(response)
-				super(response.read.to_s)
+				super(response.read)
 				
 				@response = response
 			end
