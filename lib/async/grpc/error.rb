@@ -14,6 +14,27 @@ module Async
 		class DeadlineExceededError < Error
 		end
 		
+		# Raised when an HTTP response does not conform to gRPC.
+		# Preserves the response body in the error message and the response for inspection.
+		class ResponseError < Error
+			# Initialize an error by reading the raw response body.
+			# @parameter response [Protocol::HTTP::Response] The invalid response.
+			def initialize(response)
+				super(response.read.to_s)
+				
+				@response = response
+			end
+			
+			# @attribute [Protocol::HTTP::Response] The response, with its body consumed.
+			attr :response
+			
+			# Describe the invalid response and include its body.
+			# @returns [String] The HTTP status, content type, and response body.
+			def to_s
+				"Invalid gRPC response: HTTP #{@response.status}, content-type #{@response.headers["content-type"].to_s.inspect}!\n#{super}"
+			end
+		end
+		
 		# Represents an error that originated from a remote gRPC server.
 		# Used as the `cause` of {Protocol::GRPC::Error} when the client receives a non-OK status.
 		# The message and optional backtrace are extracted from response metadata.

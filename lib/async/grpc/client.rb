@@ -98,6 +98,7 @@ module Async
 			# Call the underlying HTTP client with merged headers.
 			# @parameter request [Protocol::HTTP::Request] The HTTP request
 			# @returns [Protocol::HTTP::Response] The HTTP response
+			# @raises [ResponseError] If the HTTP response does not conform to gRPC.
 			def call(request)
 				request.headers = @headers.merge(request.headers)
 				
@@ -121,6 +122,7 @@ module Async
 			# @yields {|input, output| ...} Block for streaming calls
 			# @returns [Object | Protocol::GRPC::Body::ReadableBody] Response message or readable body for streaming
 			# @raises [ArgumentError] If method is unknown or streaming type is invalid
+			# @raises [ResponseError] If the HTTP response does not conform to gRPC.
 			# @raises [Protocol::GRPC::Error] If the gRPC call fails
 			def invoke(service, method, request = nil, metadata: {}, timeout: nil, encoding: nil, initial: nil, &block)
 				rpc = service.class.lookup_rpc(method)
@@ -156,21 +158,12 @@ module Async
 			
 			# Reject non-gRPC responses before passing their bytes to a frame decoder.
 			# @parameter response [Protocol::HTTP::Response] The HTTP response.
-			# @raises [Protocol::GRPC::Error] If the response is not a valid gRPC envelope.
+			# @raises [ResponseError] If the response is not a valid gRPC envelope.
 			def validate_response!(response)
 				content_type = response.headers["content-type"].to_s
 				return if response.status == 200 && content_type.match?(/\Aapplication\/grpc(?:\+[\w.-]+)?(?:\s*;|\z)/i)
 				
-				# Consume the body without decoding frames so gRPC status trailers are available:
-				response.body&.discard
-				if response.headers["grpc-status"]
-					check_status!(response)
-					status = Protocol::GRPC::Status::INTERNAL
-				else
-					status = Protocol::GRPC::Status.for_http_status(response.status)
-				end
-				
-				raise Protocol::GRPC::Error.for(status, "Invalid gRPC response: HTTP #{response.status}, content-type #{content_type.inspect}!")
+				raise ResponseError, response
 			end
 			
 			# Make a unary gRPC call.

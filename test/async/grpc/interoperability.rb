@@ -16,21 +16,21 @@ describe Async::GRPC::Client do
 	end
 	
 	with "HTTP response validation" do
-		{400 => 13, 401 => 16, 403 => 7, 404 => 12, 429 => 14, 502 => 14, 503 => 14, 504 => 14, 500 => 2, 200 => 2}.each do |http, grpc|
-			it "maps HTTP #{http} without decoding an HTML body" do
-				response = Protocol::HTTP::Response[http, {"content-type" => "text/html"}, ["<!DOCTYPE html>"]]
-				expect do
-					client_for(response).call(request)
-				end.to raise_exception(Protocol::GRPC::Error, message: be =~ /Invalid gRPC response/).and(have_attributes(status_code: be == grpc))
-				expect(response.body).to be_nil
-			end
-		end
-		
-		it "preserves explicit gRPC errors over the HTTP fallback" do
-			response = Protocol::HTTP::Response[503, {"grpc-status" => "16", "grpc-message" => "Token%20expired"}, []]
+		it "preserves the HTTP response and HTML body in the error" do
+			response = Protocol::HTTP::Response[503, {"content-type" => "text/html", "x-request-id" => "123"}, ["<html>", "Proxy failure!", "</html>"]]
 			expect do
 				client_for(response).call(request)
-			end.to raise_exception(Protocol::GRPC::Unauthenticated)
+			end.to raise_exception(Async::GRPC::ResponseError, message: be == "Invalid gRPC response: HTTP 503, content-type \"text/html\"!\n<html>Proxy failure!</html>").and(have_attributes(response: be_equal(response)))
+			expect(response.headers["x-request-id"]).to be == ["123"]
+			expect(response.body).to be_nil
+		end
+		
+		it "rejects a non-200 status even with gRPC content type and OK status" do
+			response = Protocol::HTTP::Response[503, {"content-type" => "application/grpc", "grpc-status" => "0"}, nil]
+			expect do
+				client_for(response).call(request)
+			end.to raise_exception(Async::GRPC::ResponseError, message: be =~ /HTTP 503/)
+			expect(response.body).to be_nil
 		end
 		
 		it "closes the response when reading an invalid response body fails" do
@@ -41,20 +41,6 @@ describe Async::GRPC::Client do
 			expect{client_for(response).call(request)}.to raise_exception(RuntimeError, message: be == "Read failed!")
 			expect(response.body).to be_nil
 			expect(body).to be(:closed?)
-		end
-		
-		it "reads trailers without decoding a non-gRPC body" do
-			headers = Protocol::HTTP::Headers.new
-			body = Protocol::HTTP::Body::Writable.new
-			body.write("HTML")
-			body.close_write
-			body.define_singleton_method(:read) do
-				chunk = super()
-				headers["grpc-status"] = "16" unless chunk
-				chunk
-			end
-			response = Protocol::HTTP::Response[503, headers, body]
-			expect{client_for(response).call(request)}.to raise_exception(Protocol::GRPC::Unauthenticated)
 		end
 		
 		["application/grpc", "application/grpc+proto", "application/grpc+json", "application/grpc; charset=utf-8"].each do |content_type|
@@ -72,7 +58,7 @@ describe Async::GRPC::Client do
 				headers = {"grpc-status" => "0"}
 				headers["content-type"] = content_type if content_type
 				response = Protocol::HTTP::Response[200, headers, []]
-				expect{client_for(response).call(request)}.to raise_exception(Protocol::GRPC::Internal)
+				expect{client_for(response).call(request)}.to raise_exception(Async::GRPC::ResponseError)
 			end
 		end
 	end
