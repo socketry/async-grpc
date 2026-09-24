@@ -32,6 +32,15 @@ describe Async::GRPC::Client do
 			end.to raise_exception(Protocol::GRPC::Unauthenticated)
 		end
 		
+		it "closes the response when reading an invalid response body fails" do
+			body = Protocol::HTTP::Body::Buffered.new(["HTML"])
+			body.define_singleton_method(:read){raise RuntimeError, "Read failed!"}
+			response = Protocol::HTTP::Response[503, {"content-type" => "text/html"}, body]
+			
+			expect{client_for(response).call(request)}.to raise_exception(RuntimeError, message: be == "Read failed!")
+			expect(response.body).to be_nil
+		end
+		
 		it "reads trailers without decoding a non-gRPC body" do
 			headers = Protocol::HTTP::Headers.new
 			body = Protocol::HTTP::Body::Buffered.new(["HTML"])
@@ -46,8 +55,11 @@ describe Async::GRPC::Client do
 		
 		["application/grpc", "application/grpc+proto", "application/grpc+json", "application/grpc; charset=utf-8"].each do |content_type|
 			it "accepts #{content_type}" do
-				response = Protocol::HTTP::Response[200, {"content-type" => content_type, "grpc-status" => "0"}, nil]
+				response = Protocol::HTTP::Response[200, {"content-type" => content_type, "grpc-status" => "0"}, ["unread"]]
 				expect(client_for(response).call(request)).to be_equal(response)
+				expect(response.body.read).to be == "unread"
+			ensure
+				response.close
 			end
 		end
 		

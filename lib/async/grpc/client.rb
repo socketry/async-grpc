@@ -101,17 +101,13 @@ module Async
 			def call(request)
 				request.headers = @headers.merge(request.headers)
 				
-				response = super
-				
-				begin
+				super.tap do |response|
 					response.headers.policy = Protocol::GRPC::HEADER_POLICY
 					validate_response!(response)
-				rescue Exception => error
-					response.close(error)
-					raise
+					success = true
+				ensure
+					response.close unless success
 				end
-				
-				return response
 			end
 			
 			# Make a gRPC call.
