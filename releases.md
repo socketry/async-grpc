@@ -4,7 +4,6 @@
 
   - Send `application/grpc` request headers for compatibility with Google API frontends.
   - Validate HTTP responses before decoding gRPC frames, using the HTTP-to-gRPC status fallback when no gRPC status is supplied.
-  - Translate connection and response-read transport failures into `Protocol::GRPC::Unavailable`, retaining the original exception as the cause.
 
 ## v0.9.0
 

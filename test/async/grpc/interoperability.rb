@@ -4,7 +4,6 @@
 # Copyright, 2026, by Samuel Williams.
 
 require "async/grpc/client"
-require "protocol/http2/error"
 
 describe Async::GRPC::Client do
 	let(:request) {Protocol::HTTP::Request["POST", "/example.Service/Call", {}, nil]}
@@ -59,35 +58,6 @@ describe Async::GRPC::Client do
 				response = Protocol::HTTP::Response[200, headers, []]
 				expect{client_for(response).call(request)}.to raise_exception(Protocol::GRPC::Internal)
 			end
-		end
-	end
-	
-	with "transport errors" do
-		[Errno::ECONNREFUSED.new, Errno::ECONNRESET.new, EOFError.new, SocketError.new, OpenSSL::SSL::SSLError.new, Protocol::HTTP2::GoawayError.new("Disconnected")].each do |failure|
-			it "converts #{failure.class} while connecting" do
-				delegate = Object.new
-				delegate.define_singleton_method(:call){|request| raise failure}
-				expect do
-					subject.new(delegate).call(request)
-				end.to raise_exception(Protocol::GRPC::Unavailable).and(have_attributes(cause: be_equal(failure)))
-			end
-		end
-		
-		it "converts connection failures while reading response bytes" do
-			failure = Errno::ECONNRESET.new
-			body = Protocol::HTTP::Body::Buffered.new(["unread"])
-			body.define_singleton_method(:read){raise failure}
-			response = Protocol::HTTP::Response[200, {"content-type" => "application/grpc"}, body]
-			result = client_for(response).call(request)
-			expect{result.body.read}.to raise_exception(Protocol::GRPC::Unavailable).and(have_attributes(cause: be_equal(failure)))
-		ensure
-			result&.close
-		end
-		
-		it "does not convert caller timeouts into unavailable errors" do
-			delegate = Object.new
-			delegate.define_singleton_method(:call){|request| raise Async::TimeoutError}
-			expect{subject.new(delegate).call(request)}.to raise_exception(Async::TimeoutError)
 		end
 	end
 end

@@ -17,7 +17,6 @@ require "protocol/grpc/metadata"
 require "protocol/grpc/error"
 require_relative "stub"
 require_relative "error"
-require_relative "transport"
 
 module Async
 	module GRPC
@@ -102,15 +101,10 @@ module Async
 			def call(request)
 				request.headers = @headers.merge(request.headers)
 				
-				response = begin
-					super
-				rescue *Transport::ERRORS => error
-					raise Protocol::GRPC::Unavailable.new(error.message), cause: error
-				end
+				response = super
 				
 				begin
 					response.headers.policy = Protocol::GRPC::HEADER_POLICY
-					response.body = Transport::Body.new(response.body) if response.body
 					validate_response!(response)
 				rescue Exception => error
 					response.close(error)
