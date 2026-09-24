@@ -371,7 +371,7 @@ describe Async::GRPC::Client do
 			
 			expect do
 				client.invoke(interface, :InvalidCall)
-			end.to raise_exception(ArgumentError, message: be == "Unknown streaming type: invalid")
+			end.to raise_exception(ArgumentError, message: be == "Unknown streaming type: invalid!")
 		end
 	end
 	
