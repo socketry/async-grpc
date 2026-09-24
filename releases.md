@@ -3,7 +3,7 @@
 ## Unreleased
 
   - Send `application/grpc` request headers for compatibility with Google API frontends.
-  - Reject invalid HTTP responses before decoding gRPC frames with `Async::GRPC::ResponseError`, preserving the body in the error message and the response for inspecting status and headers.
+  - Reject invalid HTTP responses before decoding gRPC frames with `Async::GRPC::ResponseError`, describing the invalid status and content type in the message and buffering the response for inspecting status, headers, and body.
 
 ## v0.9.0
 

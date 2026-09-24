@@ -20,9 +20,10 @@ describe Async::GRPC::Client do
 			response = Protocol::HTTP::Response[503, {"content-type" => "text/html", "x-request-id" => "123"}, ["<html>", "Proxy failure!", "</html>"]]
 			expect do
 				client_for(response).call(request)
-			end.to raise_exception(Async::GRPC::ResponseError, message: be == "Invalid gRPC response: HTTP 503, content-type \"text/html\"!\n<html>Proxy failure!</html>").and(have_attributes(response: be_equal(response)))
+			end.to raise_exception(Async::GRPC::ResponseError, message: be == "Invalid gRPC response: HTTP 503, content-type \"text/html\"!").and(have_attributes(response: be_equal(response)))
 			expect(response.headers["x-request-id"]).to be == ["123"]
-			expect(response.body).to be_nil
+			expect(response.body).to be_a(Protocol::HTTP::Body::Buffered)
+			expect(response.read).to be == "<html>Proxy failure!</html>"
 		end
 		
 		it "rejects a non-200 status even with gRPC content type and OK status" do

@@ -15,24 +15,18 @@ module Async
 		end
 		
 		# Raised when an HTTP response does not conform to gRPC.
-		# Preserves the response body in the error message and the response for inspection.
+		# Preserves the buffered response for inspection.
 		class ResponseError < Error
-			# Initialize an error by reading the raw response body.
+			# Initialize an error by buffering the raw response body.
 			# @parameter response [Protocol::HTTP::Response] The invalid response.
 			def initialize(response)
-				super(response.read)
+				@response = response.buffered!
 				
-				@response = response
+				super("Invalid gRPC response: HTTP #{response.status}, content-type #{response.headers["content-type"].to_s.inspect}!")
 			end
 			
-			# @attribute [Protocol::HTTP::Response] The response, with its body consumed.
+			# @attribute [Protocol::HTTP::Response] The response, with its body buffered and available to read.
 			attr :response
-			
-			# Describe the invalid response and include its body.
-			# @returns [String] The HTTP status, content type, and response body.
-			def to_s
-				"Invalid gRPC response: HTTP #{@response.status}, content-type #{@response.headers["content-type"].to_s.inspect}!\n#{super}"
-			end
 		end
 		
 		# Represents an error that originated from a remote gRPC server.
