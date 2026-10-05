@@ -38,6 +38,21 @@ http_client = Async::HTTP::Client.new(endpoint)
 client = Async::GRPC::Client.new(http_client)
 ```
 
+### Limiting Response Message Size
+
+To bound response payloads from a peer, configure the client with `maximum_receive_message_size`:
+
+``` ruby
+client = Async::GRPC::Client.new(
+	http_client,
+	maximum_receive_message_size: 4 * 1024 * 1024
+)
+```
+
+The limit applies to each response in all four RPC patterns. It excludes the five-byte frame prefix, accepts exactly the configured size, and bounds both the declared wire payload and incrementally decompressed gzip/deflate output. Oversized messages raise {ruby Protocol::GRPC::Error} with `RESOURCE_EXHAUSTED` status. Requests are not limited by this option.
+
+The default is `nil` (unlimited). {ruby Async::GRPC::Client.open} forwards the option, and {ruby Async::GRPC::Client.with} inherits it unless explicitly overridden. This option requires a version of `protocol-grpc` supporting {ruby Protocol::GRPC::Body::Readable}'s `maximum_size` keyword; it does not bound the underlying HTTP transport's buffering.
+
 ### Using a Stub
 
 Create a stub from an interface definition:

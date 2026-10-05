@@ -34,6 +34,7 @@ module Async
 			# Create a new client for the given endpoint.
 			# @parameter endpoint [Async::HTTP::Endpoint, String] The endpoint to connect to
 			# @parameter headers [Protocol::HTTP::Headers] Default headers to include with requests
+			# @parameter options [Hash] Options forwarded to the initializer.
 			# @yields {|client| ...} Optional block - client will be closed after block execution
 			# @returns [Client] The client instance
 			def self.open(endpoint = self::ENDPOINT, headers: Protocol::HTTP::Headers.new, **options)
@@ -55,24 +56,35 @@ module Async
 			# Create a new client with merged headers from a parent client.
 			# @parameter parent [Client] The parent client to inherit headers from
 			# @parameter headers [Hash] Additional headers to merge
+			# @parameter maximum_receive_message_size [Integer | Nil] Maximum response payload size in bytes, inherited from the parent by default.
 			# @returns [Client] A new client instance with merged headers
-			def self.with(parent, headers: {})
+			def self.with(parent, headers: {}, maximum_receive_message_size: parent.maximum_receive_message_size)
 				merged_headers = parent.headers.merge(headers)
 				
-				new(parent.delegate, headers: merged_headers)
+				new(parent.delegate, headers: merged_headers, maximum_receive_message_size: maximum_receive_message_size)
 			end
 			
 			# Initialize a new gRPC client.
 			# @parameter delegate [Async::HTTP::Client] The HTTP client that will handle requests
 			# @parameter headers [Protocol::HTTP::Headers] The default headers that will be supplied with requests
-			def initialize(delegate, headers: Protocol::HTTP::Headers.new)
+			# @parameter maximum_receive_message_size [Integer | Nil] Maximum wire and decompressed response payload size in bytes, excluding the frame prefix. `nil` disables the limit.
+			# @raises [ArgumentError] If the maximum receive message size is not a non-negative integer or `nil`.
+			def initialize(delegate, headers: Protocol::HTTP::Headers.new, maximum_receive_message_size: nil)
+				unless maximum_receive_message_size.nil? || (maximum_receive_message_size.is_a?(Integer) && maximum_receive_message_size >= 0)
+					raise ArgumentError, "Maximum receive message size must be a non-negative integer or nil!"
+				end
+				
 				super(delegate)
 				
 				@headers = headers
+				@maximum_receive_message_size = maximum_receive_message_size
 			end
 			
 			# @attribute [Protocol::HTTP::Headers] The default headers for requests.
 			attr_reader :headers
+			
+			# @attribute [Integer | Nil] The maximum wire and decompressed response payload size in bytes.
+			attr_reader :maximum_receive_message_size
 			
 			# Get a string representation of the client.
 			# @returns [String] A string representation including headers
@@ -153,6 +165,13 @@ module Async
 			
 		protected
 			
+			# Options for decoding response messages.
+			# @returns [Hash] The configured receive limit, if enabled.
+			def receive_options
+				# Omit the new keyword when unlimited, for compatibility with earlier protocol-grpc versions:
+				@maximum_receive_message_size ? {maximum_size: @maximum_receive_message_size} : {}
+			end
+			
 			# Reject non-gRPC responses before passing their bytes to a frame decoder.
 			# @parameter response [Protocol::HTTP::Response] The HTTP response.
 			# @raises [ResponseError] If the response is not a valid gRPC envelope.
@@ -183,7 +202,7 @@ module Async
 				begin
 					# Read body first - trailers are only available after body is consumed
 					response_encoding = response.headers["grpc-encoding"]
-					response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: response_class, encoding: response_encoding)
+					response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: response_class, encoding: response_encoding, **receive_options)
 					
 					if response_body
 						response_value = response_body.read
@@ -220,7 +239,7 @@ module Async
 				begin
 					# Read body first - trailers are only available after body is consumed:
 					response_encoding = response.headers["grpc-encoding"]
-					response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: response_class, encoding: response_encoding)
+					response_body = Protocol::GRPC::Body::ReadableBody.wrap(response, message_class: response_class, encoding: response_encoding, **receive_options)
 					
 					if block_given? and response_body
 						response_body.each(&block)
@@ -266,7 +285,8 @@ module Async
 					readable_body = Protocol::GRPC::Body::ReadableBody.new(
 						response.body,
 						message_class: response_class,
-						encoding: response_encoding
+						encoding: response_encoding,
+						**receive_options
 					)
 					
 					message = readable_body.read
@@ -309,7 +329,8 @@ module Async
 					readable_body = Protocol::GRPC::Body::ReadableBody.new(
 						response.body,
 						message_class: response_class,
-						encoding: response_encoding
+						encoding: response_encoding,
+						**receive_options
 					)
 					
 					unless block_given?
