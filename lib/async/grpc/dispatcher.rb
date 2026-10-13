@@ -27,7 +27,7 @@ module Async
 		#   dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
 		#   dispatcher.register(WorldService.new(WorldInterface, "world.Greeter"))
 		#
-		#   server = Async::HTTP::Server.for(endpoint, dispatcher)
+		#   server = Async::HTTP::Server.new(dispatcher, endpoint)
 		class Dispatcher < Protocol::GRPC::Middleware
 			# Initialize the dispatcher.
 			# @parameter app [#call | Nil] The next middleware in the chain
