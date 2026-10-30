@@ -34,7 +34,7 @@ module Async
 		#   # Register with dispatcher:
 		#   dispatcher = Dispatcher.new
 		#   dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
-		#   server = Async::HTTP::Server.for(endpoint, dispatcher)
+		#   server = Async::HTTP::Server.new(dispatcher, endpoint)
 		class Service
 			# Initialize a new service instance.
 			# @parameter interface_class [Class] The interface class (subclass of Protocol::GRPC::Interface)

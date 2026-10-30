@@ -119,7 +119,7 @@ require "async/http/server"
 require "async/http/endpoint"
 
 endpoint = Async::HTTP::Endpoint.parse("http://localhost:50051")
-server = Async::HTTP::Server.for(endpoint, dispatcher)
+server = Async::HTTP::Server.new(dispatcher, endpoint)
 
 Async do
 	server.run
@@ -192,23 +192,25 @@ class GreeterService < Async::GRPC::Service
 end
 
 Async do
-		# Setup server
+	# Setup server
 	endpoint = Async::HTTP::Endpoint.parse("http://localhost:50051")
 	dispatcher = Async::GRPC::Dispatcher.new
 	dispatcher.register(GreeterService.new(GreeterInterface, "hello.Greeter"))
-	server = Async::HTTP::Server.for(endpoint, dispatcher)
+	server = Async::HTTP::Server.new(dispatcher, endpoint)
+	server_task = server.run
 	
-		# Setup client
-	client_endpoint = Async::HTTP::Endpoint.parse("http://localhost:50051")
+	# Setup client (gRPC requires HTTP/2):
+	client_endpoint = Async::HTTP::Endpoint.parse("http://localhost:50051", protocol: Async::HTTP::Protocol::HTTP2)
 	http_client = Async::HTTP::Client.new(client_endpoint)
 	client = Async::GRPC::Client.new(http_client)
 	stub = client.stub(GreeterInterface, "hello.Greeter")
 	
-		# Make a call
+	# Make a call
 	request = Hello::HelloRequest.new(name: "World")
 	response = stub.say_hello(request)
 	puts response.message  # => "Hello, World!"
-	
-	server.run
+ensure
+	client&.close
+	server_task&.stop
 end
 ```
